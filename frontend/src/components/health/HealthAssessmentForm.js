@@ -5,9 +5,9 @@ import { TextInput, Select, Textarea, Button, Card, Title, Text, Alert, LoadingO
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
 
 // API configuration - works for both dev and production
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
+const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? '' // Use relative URLs in production (same domain)
-  : 'http://localhost:8000'\; // Use localhost in development
+  : 'http://localhost:8000'; // Use localhost in development
 
 export default function HealthAssessmentForm() {
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ export default function HealthAssessmentForm() {
 
     try {
       console.log('Making API call to:', `${API_BASE_URL}/api/assess-health`);
-      
+
       const response = await fetch(`${API_BASE_URL}/api/assess-health`, {
         method: 'POST',
         headers: {
@@ -40,7 +40,7 @@ export default function HealthAssessmentForm() {
       });
 
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
@@ -49,7 +49,7 @@ export default function HealthAssessmentForm() {
       const result = await response.json();
       console.log('Assessment result:', result);
       setAssessmentResult(result);
-      
+
     } catch (error) {
       console.error('Assessment error:', error);
       setError(error.message || 'Assessment failed. Please try again.');
@@ -69,7 +69,7 @@ export default function HealthAssessmentForm() {
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px' }}>
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Title order={2} mb="md">🏥 AI Health Assessment</Title>
-        
+
         <form onSubmit={handleSubmit}>
           <TextInput
             label="Full Name"
@@ -133,9 +133,9 @@ export default function HealthAssessmentForm() {
             mb="md"
           />
 
-          <Button 
-            type="submit" 
-            fullWidth 
+          <Button
+            type="submit"
+            fullWidth
             loading={loading}
             disabled={!formData.symptoms || !formData.age || !formData.gender}
           >
@@ -152,7 +152,7 @@ export default function HealthAssessmentForm() {
         {assessmentResult && (
           <Card mt="xl" p="md" withBorder>
             <Title order={3} mb="md">📋 Assessment Results</Title>
-            
+
             {/* AI Analysis */}
             <Card mb="md" p="sm" bg="blue.0">
               <Title order={4} size="h5" mb="xs">🤖 AI Analysis</Title>
@@ -160,9 +160,9 @@ export default function HealthAssessmentForm() {
                 <strong>Reasoning:</strong> {assessmentResult.ai_analysis?.reasoning}
               </Text>
               <Text size="sm" mb="xs">
-                <strong>Urgency Level:</strong> 
-                <span style={{ 
-                  color: assessmentResult.ai_analysis?.urgency === 'high' ? 'red' : 
+                <strong>Urgency Level:</strong>
+                <span style={{
+                  color: assessmentResult.ai_analysis?.urgency === 'high' ? 'red' :
                         assessmentResult.ai_analysis?.urgency === 'moderate' ? 'orange' : 'green',
                   fontWeight: 'bold',
                   marginLeft: '8px'
@@ -190,9 +190,9 @@ export default function HealthAssessmentForm() {
                 <strong>Confidence:</strong> {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
               </Text>
               <Text size="sm" mb="xs">
-                <strong>Risk Level:</strong> 
-                <span style={{ 
-                  color: assessmentResult.ml_assessment?.risk_level === 'high' ? 'red' : 
+                <strong>Risk Level:</strong>
+                <span style={{
+                  color: assessmentResult.ml_assessment?.risk_level === 'high' ? 'red' :
                         assessmentResult.ml_assessment?.risk_level === 'moderate' ? 'orange' : 'green',
                   fontWeight: 'bold',
                   marginLeft: '8px'
@@ -212,7 +212,7 @@ export default function HealthAssessmentForm() {
 
             <Alert icon={<IconCheck size="1rem" />} color="blue" variant="light">
               <Text size="sm">
-                <strong>Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice. 
+                <strong>Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice.
                 Please consult with healthcare professionals for medical concerns.
               </Text>
             </Alert>
