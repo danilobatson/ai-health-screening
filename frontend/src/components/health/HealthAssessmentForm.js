@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  TextInput, Select, Textarea, Button, Card, Title, Text, Alert, 
+import {
+  TextInput, Select, Textarea, Button, Card, Title, Text, Alert,
   Loader, Badge, Group, Stack, Paper, NumberInput, Overlay
 } from '@mantine/core';
-import { 
+import {
   IconAlertCircle, IconCheck, IconUser, IconStethoscope,
   IconBrain, IconShieldCheck, IconRefresh
 } from '@tabler/icons-react';
@@ -13,28 +13,28 @@ import {
 // Simple validation
 const validateForm = (data) => {
   const errors = {};
-  
+
   if (!data.name || data.name.length < 2) {
     errors.name = 'Name must be at least 2 characters';
   }
-  
+
   const age = parseInt(data.age);
   if (!age || age < 1 || age > 120) {
     errors.age = 'Age must be between 1 and 120 years';
   }
-  
+
   if (!data.gender) {
     errors.gender = 'Please select a gender';
   }
-  
+
   if (!data.symptoms || data.symptoms.length < 10) {
     errors.symptoms = 'Please provide more detail about symptoms (minimum 10 characters)';
   }
-  
+
   return { isValid: Object.keys(errors).length === 0, errors };
 };
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000'\;
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
 
 export default function HealthAssessmentForm() {
   const [loading, setLoading] = useState(false);
@@ -53,14 +53,14 @@ export default function HealthAssessmentForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate form
     const validation = validateForm(formData);
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
       return;
     }
-    
+
     setValidationErrors({});
     setLoading(true);
     setError('');
@@ -76,9 +76,9 @@ export default function HealthAssessmentForm() {
         medical_history: formData.medical_history.trim() || '',
         current_medications: formData.current_medications.trim() || ''
       };
-      
+
       console.log('Submitting data:', submitData);
-      
+
       const response = await fetch(`${API_BASE_URL}/api/assess-health`, {
         method: 'POST',
         headers: {
@@ -88,7 +88,7 @@ export default function HealthAssessmentForm() {
       });
 
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
         let errorMessage = `HTTP error! status: ${response.status}`;
         try {
@@ -103,7 +103,7 @@ export default function HealthAssessmentForm() {
       const result = await response.json();
       console.log('Assessment result:', result);
       setAssessmentResult(result);
-      
+
     } catch (error) {
       console.error('Assessment error:', error);
       setError(error.message || 'Assessment failed. Please try again.');
@@ -117,7 +117,7 @@ export default function HealthAssessmentForm() {
       ...prev,
       [field]: value
     }));
-    
+
     // Clear validation error for this field
     if (validationErrors[field]) {
       setValidationErrors(prev => ({
@@ -187,12 +187,12 @@ export default function HealthAssessmentForm() {
             </div>
           </Overlay>
         )}
-        
+
         {!assessmentResult ? (
           <form onSubmit={handleSubmit}>
             <Stack spacing="md">
               <Title order={3} mb="md">Patient Information</Title>
-              
+
               <TextInput
                 icon={<IconUser size={16} />}
                 label="Full Name"
@@ -268,7 +268,7 @@ export default function HealthAssessmentForm() {
                 size="md"
               />
 
-              <Button 
+              <Button
                 type="submit"
                 loading={loading}
                 size="lg"
@@ -285,7 +285,7 @@ export default function HealthAssessmentForm() {
           <Stack spacing="xl">
             <Group position="apart">
               <Title order={2} color="blue">📋 Health Assessment Report</Title>
-              <Button 
+              <Button
                 onClick={resetForm}
                 variant="light"
                 leftIcon={<IconRefresh size={16} />}
@@ -304,7 +304,7 @@ export default function HealthAssessmentForm() {
                     Powered by {assessmentResult.backend} • Risk Score: {assessmentResult.ml_assessment?.risk_score}/1.0
                   </Text>
                 </div>
-                <Badge 
+                <Badge
                   color={getRiskColor(assessmentResult.ai_analysis?.urgency)}
                   size="xl"
                   variant="filled"
@@ -338,7 +338,7 @@ export default function HealthAssessmentForm() {
                       {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
                     </Text>
                   </div>
-                  
+
                   <div style={{ textAlign: 'center' }}>
                     <Text size="xs" weight={600} style={{ opacity: 0.8 }}>RISK FACTORS</Text>
                     <Text size="xl" weight={700}>
@@ -352,7 +352,7 @@ export default function HealthAssessmentForm() {
             {/* Medical Disclaimer */}
             <Alert icon={<IconShieldCheck size="1rem" />} color="blue" variant="light">
               <Text size="sm">
-                <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice. 
+                <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice.
                 Please consult with healthcare professionals for medical concerns.
               </Text>
             </Alert>
