@@ -1,55 +1,48 @@
 import { z } from 'zod';
 
-// Symptom validation schema
-export const symptomSchema = z.object({
-  name: z.string()
-    .min(2, 'Symptom name must be at least 2 characters')
-    .max(100, 'Symptom name too long')
-    .regex(/^[a-zA-Z\s\-]+$/, 'Symptom name can only contain letters, spaces, and hyphens'),
-  severity: z.enum(['mild', 'moderate', 'severe'], {
-    errorMap: () => ({ message: 'Severity must be mild, moderate, or severe' })
-  }),
-  duration_days: z.number()
-    .int('Duration must be a whole number')
-    .min(1, 'Duration must be at least 1 day')
-    .max(365, 'Duration cannot exceed 365 days')
-});
-
-// Main health assessment schema
 export const healthAssessmentSchema = z.object({
   name: z.string()
     .min(2, 'Name must be at least 2 characters')
-    .max(100, 'Name too long')
-    .regex(/^[a-zA-Z\s\-'\.]+$/, 'Name can only contain letters, spaces, hyphens, apostrophes, and periods'),
+    .max(100, 'Name too long'),
+  
   age: z.number()
-    .int('Age must be a whole number')
     .min(1, 'Age must be at least 1')
-    .max(120, 'Age cannot exceed 120 years'),
-  symptoms: z.array(symptomSchema)
-    .min(1, 'At least one symptom is required')
-    .max(10, 'Cannot exceed 10 symptoms'),
-  medicalHistory: z.array(z.string())
-    .max(20, 'Too many medical conditions selected')
+    .max(120, 'Age must be less than 120 years')
+    .int('Age must be a whole number'),
+  
+  gender: z.enum(['male', 'female', 'other', 'prefer-not-to-say'], {
+    errorMap: () => ({ message: 'Please select a gender' })
+  }),
+  
+  symptoms: z.string()
+    .min(10, 'Please provide more detail about your symptoms (minimum 10 characters)')
+    .max(1000, 'Symptom description too long'),
+  
+  medical_history: z.string()
+    .max(500, 'Medical history description too long')
+    .optional(),
+  
+  current_medications: z.string()
+    .max(500, 'Medication list too long')
+    .optional()
 });
 
-// Medical history options (for validation)
-export const VALID_MEDICAL_CONDITIONS = [
-  'hypertension', 'diabetes', 'heart disease', 'asthma',
-  'high cholesterol', 'obesity', 'anxiety', 'depression',
-  'arthritis', 'allergies', 'cancer', 'stroke'
-];
-
-// Symptom name validation (for security)
-export const VALID_SYMPTOM_NAMES = [
-  'chest pain', 'shortness of breath', 'dizziness', 'headache',
-  'nausea', 'fatigue', 'fever', 'cough', 'abdominal pain',
-  'back pain', 'joint pain', 'muscle pain', 'swelling',
-  'rash', 'vision changes', 'hearing problems'
-];
-
-// Validate symptom name against whitelist
-export const validateSymptomName = (name) => {
-  const normalized = name.toLowerCase().trim();
-  return VALID_SYMPTOM_NAMES.includes(normalized) || 
-         VALID_SYMPTOM_NAMES.some(valid => normalized.includes(valid.split(' ')[0]));
+export const validateHealthAssessment = (data) => {
+  try {
+    const validated = healthAssessmentSchema.parse({
+      ...data,
+      age: parseInt(data.age),
+      medical_history: data.medical_history || '',
+      current_medications: data.current_medications || ''
+    });
+    return { success: true, data: validated };
+  } catch (error) {
+    return { 
+      success: false, 
+      errors: error.errors.reduce((acc, err) => {
+        acc[err.path[0]] = err.message;
+        return acc;
+      }, {})
+    };
+  }
 };

@@ -4,13 +4,13 @@ import { useState } from 'react';
 import {
   TextInput, Select, Textarea, Button, Card, Title, Text, Alert,
   LoadingOverlay, Badge, Group, Stack, Divider, Paper, Progress,
-  ActionIcon, Tooltip
+  ActionIcon, Tooltip, NumberInput
 } from '@mantine/core';
 import {
   IconAlertCircle, IconCheck, IconUser, IconCalendar, IconGenderBigender,
-  IconStethoscope, IconPill, IconBrain, IconChartBar, IconShieldCheck,
-  IconRefresh
+  IconStethoscope, IconPill, IconBrain, IconShieldCheck, IconRefresh
 } from '@tabler/icons-react';
+import { validateHealthAssessment } from '../../lib/validation';
 
 // API configuration
 const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
@@ -19,6 +19,7 @@ export default function HealthAssessmentForm() {
   const [loading, setLoading] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState(null);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
   const [step, setStep] = useState(1);
 
   const [formData, setFormData] = useState({
@@ -32,11 +33,20 @@ export default function HealthAssessmentForm() {
 
   // Form validation
   const validateStep = (currentStep) => {
+    const validation = validateHealthAssessment(formData);
+
+    if (!validation.success) {
+      setValidationErrors(validation.errors);
+      return false;
+    }
+
+    setValidationErrors({});
+
     switch(currentStep) {
       case 1:
         return formData.name && formData.age && formData.gender;
       case 2:
-        return formData.symptoms && formData.symptoms.length > 10;
+        return formData.symptoms && formData.symptoms.length >= 10;
       default:
         return true;
     }
@@ -44,6 +54,14 @@ export default function HealthAssessmentForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Final validation
+    const validation = validateHealthAssessment(formData);
+    if (!validation.success) {
+      setValidationErrors(validation.errors);
+      return;
+    }
+
     setLoading(true);
     setError('');
     setAssessmentResult(null);
@@ -54,7 +72,7 @@ export default function HealthAssessmentForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(validation.data)
       });
 
       if (!response.ok) {
@@ -78,6 +96,14 @@ export default function HealthAssessmentForm() {
       ...prev,
       [field]: value
     }));
+
+    // Clear validation error for this field
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: undefined
+      }));
+    }
   };
 
   const resetForm = () => {
@@ -91,6 +117,7 @@ export default function HealthAssessmentForm() {
     });
     setAssessmentResult(null);
     setError('');
+    setValidationErrors({});
     setStep(1);
   };
 
@@ -120,7 +147,7 @@ export default function HealthAssessmentForm() {
           <IconStethoscope size={40} />
           <div>
             <Title order={1} size="h2">AI Health Assessment</Title>
-            <Text size="lg" opacity={0.9}>Professional healthcare analysis powered by AI</Text>
+            <Text size="lg" opacity={0.9}>Professional medical analysis powered by AI</Text>
           </div>
         </Group>
         <Group>
@@ -137,7 +164,7 @@ export default function HealthAssessmentForm() {
           <form onSubmit={handleSubmit}>
             {/* Progress Indicator */}
             <Progress
-              value={step === 1 ? 33 : step === 2 ? 66 : 100}
+              value={step === 1 ? 50 : 100}
               mb="xl"
               size="lg"
               radius="xl"
@@ -158,18 +185,19 @@ export default function HealthAssessmentForm() {
                   placeholder="Enter your full name"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
+                  error={validationErrors.name}
                   required
                   size="md"
                 />
 
                 <Group grow>
-                  <TextInput
+                  <NumberInput
                     icon={<IconCalendar size={16} />}
                     label="Age"
-                    type="number"
                     placeholder="Enter age"
                     value={formData.age}
-                    onChange={(e) => handleInputChange('age', e.target.value)}
+                    onChange={(value) => handleInputChange('age', value)}
+                    error={validationErrors.age}
                     required
                     min={1}
                     max={120}
@@ -182,6 +210,7 @@ export default function HealthAssessmentForm() {
                     placeholder="Select gender"
                     value={formData.gender}
                     onChange={(value) => handleInputChange('gender', value)}
+                    error={validationErrors.gender}
                     data={[
                       { value: 'male', label: 'Male' },
                       { value: 'female', label: 'Female' },
@@ -194,12 +223,12 @@ export default function HealthAssessmentForm() {
                 </Group>
 
                 <Button
-                  onClick={() => setStep(2)}
+                  onClick={() => validateStep(1) && setStep(2)}
                   disabled={!validateStep(1)}
                   size="lg"
                   fullWidth
                 >
-                  Continue to Symptoms →
+                  Continue to Medical Information →
                 </Button>
               </Stack>
             )}
@@ -219,10 +248,10 @@ export default function HealthAssessmentForm() {
                   placeholder="Example: Experiencing headaches for the past 3 days, mild nausea, difficulty concentrating..."
                   value={formData.symptoms}
                   onChange={(e) => handleInputChange('symptoms', e.target.value)}
+                  error={validationErrors.symptoms}
                   required
                   minRows={4}
                   size="md"
-                  error={formData.symptoms.length > 0 && formData.symptoms.length < 10 ? 'Please provide more detail (minimum 10 characters)' : null}
                 />
 
                 <Textarea
@@ -232,6 +261,7 @@ export default function HealthAssessmentForm() {
                   placeholder="Example: Diabetes Type 2, allergic to penicillin, previous surgery in 2020..."
                   value={formData.medical_history}
                   onChange={(e) => handleInputChange('medical_history', e.target.value)}
+                  error={validationErrors.medical_history}
                   minRows={3}
                   size="md"
                 />
@@ -243,6 +273,7 @@ export default function HealthAssessmentForm() {
                   placeholder="Example: Metformin 500mg twice daily, Vitamin D 1000 IU daily..."
                   value={formData.current_medications}
                   onChange={(e) => handleInputChange('current_medications', e.target.value)}
+                  error={validationErrors.current_medications}
                   minRows={2}
                   size="md"
                 />
@@ -271,10 +302,10 @@ export default function HealthAssessmentForm() {
             )}
           </form>
         ) : (
-          /* Results Display */
+          /* Unified Assessment Results */
           <Stack spacing="xl">
             <Group position="apart">
-              <Title order={2} color="blue">📋 Assessment Results</Title>
+              <Title order={2} color="blue">📋 Health Assessment Report</Title>
               <Tooltip label="Start new assessment">
                 <ActionIcon
                   onClick={resetForm}
@@ -287,110 +318,81 @@ export default function HealthAssessmentForm() {
               </Tooltip>
             </Group>
 
-            {/* AI Analysis Card */}
-            <Paper p="lg" withBorder radius="md" bg="blue.0">
-              <Group mb="md">
-                <IconBrain size={24} color="#1976d2" />
-                <Title order={3} color="blue">🤖 AI Analysis</Title>
+            {/* Unified Assessment Display */}
+            <Paper p="xl" withBorder radius="lg" bg="gradient(135deg, #667eea 0%, #764ba2 100%)" style={{ color: 'white' }}>
+              <Group mb="lg">
+                <IconBrain size={32} />
+                <div>
+                  <Title order={2}>AI Medical Assessment</Title>
+                  <Text size="sm" opacity={0.9}>
+                    Powered by {assessmentResult.backend} • Risk Score: {assessmentResult.ml_assessment?.risk_score}/1.0
+                  </Text>
+                </div>
+                <Badge
+                  color={getRiskColor(assessmentResult.ai_analysis?.urgency)}
+                  size="xl"
+                  variant="filled"
+                >
+                  {getUrgencyIcon(assessmentResult.ai_analysis?.urgency)} {assessmentResult.ai_analysis?.urgency?.toUpperCase()} PRIORITY
+                </Badge>
               </Group>
 
-              <Stack spacing="sm">
+              <Stack spacing="md">
                 <div>
-                  <Text size="sm" weight={600} color="dimmed">REASONING</Text>
+                  <Text weight={600} mb="xs">CLINICAL ASSESSMENT</Text>
                   <Text>{assessmentResult.ai_analysis?.reasoning}</Text>
                 </div>
 
-                <Group>
-                  <Text size="sm" weight={600} color="dimmed">URGENCY LEVEL</Text>
-                  <Badge
-                    color={getRiskColor(assessmentResult.ai_analysis?.urgency)}
-                    size="lg"
-                    variant="filled"
-                  >
-                    {getUrgencyIcon(assessmentResult.ai_analysis?.urgency)} {assessmentResult.ai_analysis?.urgency?.toUpperCase()}
-                  </Badge>
-                </Group>
-
                 <div>
-                  <Text size="sm" weight={600} color="dimmed" mb="xs">RECOMMENDATIONS</Text>
+                  <Text weight={600} mb="xs">MEDICAL RECOMMENDATIONS</Text>
                   <Stack spacing={4}>
                     {assessmentResult.ai_analysis?.recommendations?.map((rec, index) => (
                       <Group key={index} spacing="xs">
-                        <IconCheck size={14} color="green" />
+                        <IconCheck size={14} />
                         <Text size="sm">{rec}</Text>
                       </Group>
                     ))}
                   </Stack>
                 </div>
+
+                <Group grow>
+                  <div style={{ textAlign: 'center' }}>
+                    <Text size="xs" weight={600} opacity={0.8}>CONFIDENCE</Text>
+                    <Text size="xl" weight={700}>
+                      {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
+                    </Text>
+                  </div>
+
+                  <div style={{ textAlign: 'center' }}>
+                    <Text size="xs" weight={600} opacity={0.8}>RISK FACTORS</Text>
+                    <Text size="xl" weight={700}>
+                      {assessmentResult.ml_assessment?.factors?.length || 0}
+                    </Text>
+                  </div>
+                </Group>
               </Stack>
             </Paper>
 
-            {/* ML Assessment Card */}
-            <Paper p="lg" withBorder radius="md" bg="green.0">
-              <Group mb="md">
-                <IconChartBar size={24} color="#388e3c" />
-                <Title order={3} color="green">📊 ML Risk Assessment</Title>
-              </Group>
-
-              <Group grow mb="md">
-                <div style={{ textAlign: 'center' }}>
-                  <Text size="xs" color="dimmed" weight={600}>RISK SCORE</Text>
-                  <Text size="xl" weight={700} color={getRiskColor(assessmentResult.ml_assessment?.risk_level)}>
-                    {assessmentResult.ml_assessment?.risk_score}/1.0
-                  </Text>
-                </div>
-
-                <div style={{ textAlign: 'center' }}>
-                  <Text size="xs" color="dimmed" weight={600}>CONFIDENCE</Text>
-                  <Text size="xl" weight={700}>
-                    {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
-                  </Text>
-                </div>
-
-                <div style={{ textAlign: 'center' }}>
-                  <Text size="xs" color="dimmed" weight={600}>RISK LEVEL</Text>
-                  <Badge
-                    color={getRiskColor(assessmentResult.ml_assessment?.risk_level)}
-                    size="lg"
-                    variant="filled"
-                  >
-                    {assessmentResult.ml_assessment?.risk_level?.toUpperCase()}
-                  </Badge>
-                </div>
-              </Group>
-
-              <div>
-                <Text size="sm" weight={600} color="dimmed" mb="xs">ASSESSMENT FACTORS</Text>
-                <Stack spacing={4}>
-                  {assessmentResult.ml_assessment?.factors?.map((factor, index) => (
-                    <Group key={index} spacing="xs">
-                      <IconChartBar size={14} color="#388e3c" />
-                      <Text size="sm">{factor}</Text>
-                    </Group>
-                  ))}
-                </Stack>
-              </div>
+            {/* Risk Factors Details */}
+            <Paper p="lg" withBorder radius="md" bg="gray.0">
+              <Title order={4} mb="md">Assessment Factors Considered</Title>
+              <Stack spacing={4}>
+                {assessmentResult.ml_assessment?.factors?.map((factor, index) => (
+                  <Group key={index} spacing="xs">
+                    <Text size="sm" color="dimmed">•</Text>
+                    <Text size="sm">{factor}</Text>
+                  </Group>
+                ))}
+              </Stack>
             </Paper>
 
-            {/* Disclaimer */}
+            {/* Medical Disclaimer */}
             <Alert icon={<IconShieldCheck size="1rem" />} color="blue" variant="light">
               <Text size="sm">
                 <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice.
                 Please consult with healthcare professionals for medical concerns, especially for urgent symptoms.
               </Text>
             </Alert>
-
-            {/* Technical Info */}
-            <Paper p="sm" bg="gray.0" radius="md">
-              <Group position="apart">
-                <Text size="xs" color="dimmed">
-                  Powered by: {assessmentResult.backend || 'AI Healthcare System'}
-                </Text>
-                <Text size="xs" color="dimmed">
-                  Assessment completed in real-time
-                </Text>
-              </Group>
-            </Paper>
           </Stack>
         )}
 
