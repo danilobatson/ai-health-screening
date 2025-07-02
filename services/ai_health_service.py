@@ -28,12 +28,20 @@ class AIHealthService:
         try:
             print(f"🔍 Starting enhanced AI + ML assessment for age {age}")
             
+            # Handle both string and list formats for symptoms
+            if isinstance(symptoms, str):
+                symptoms_text = symptoms
+                symptoms_for_ml = symptoms  # Pass string directly to ML
+            else:
+                # Legacy format - list of symptom objects
+                symptoms_text = ", ".join([f"{s.name} ({s.severity} for {s.duration_days} days)" for s in symptoms])
+                symptoms_for_ml = symptoms_text
+            
             # Get traditional ML prediction
-            ml_prediction = ml_service.predict_risk_ml(age, symptoms, medical_history)
-            ml_patterns = ml_service.analyze_health_patterns(age, symptoms, medical_history)
+            ml_prediction = ml_service.predict_risk_ml(age, symptoms_for_ml, medical_history)
+            ml_patterns = ml_service.analyze_health_patterns(age, symptoms_for_ml, medical_history)
             
             # Prepare the assessment prompt with ML insights
-            symptoms_text = ", ".join([f"{s.name} ({s.severity} for {s.duration_days} days)" for s in symptoms])
             history_text = ", ".join(medical_history) if medical_history else "None"
             
             # Include ML insights in the prompt

@@ -125,14 +125,26 @@ class HealthMLService:
         except Exception as e:
             print(f"❌ ML model training failed: {e}")
     
-    def predict_risk_ml(self, age: int, symptoms: List[Dict], medical_history: List[str]) -> Dict[str, Any]:
-        """Use ML model to predict health risk"""
+    def predict_risk_ml(self, age: int, symptoms, medical_history: List[str]) -> Dict[str, Any]:
+        """Use ML model to predict health risk - handles both string and list symptoms"""
         if not self.model_trained:
             return {"error": "ML model not trained"}
         
         try:
-            # Process primary symptom (use first/most severe)
-            primary_symptom = symptoms[0] if symptoms else {"name": "fatigue", "severity": "mild", "duration_days": 1}
+            # Handle both string and list formats for symptoms
+            if isinstance(symptoms, str):
+                # Convert string symptoms to structured format for ML processing
+                primary_symptom = {
+                    "name": self._extract_primary_symptom(symptoms),
+                    "severity": self._estimate_severity(symptoms),
+                    "duration_days": self._estimate_duration(symptoms)
+                }
+            elif isinstance(symptoms, list) and len(symptoms) > 0:
+                # Legacy format - list of symptom objects
+                primary_symptom = symptoms[0]
+            else:
+                # Fallback
+                primary_symptom = {"name": "fatigue", "severity": "mild", "duration_days": 1}
             
             # Encode categorical variables
             severity_encoded = self.symptom_encoder.transform([primary_symptom['severity']])[0]
@@ -184,14 +196,24 @@ class HealthMLService:
             print(f"❌ ML prediction error: {e}")
             return {"error": f"ML prediction failed: {str(e)}"}
     
-    def analyze_health_patterns(self, age: int, symptoms: List[Dict], medical_history: List[str]) -> Dict[str, Any]:
-        """Analyze health patterns using ML clustering and analysis"""
+    def analyze_health_patterns(self, age: int, symptoms, medical_history: List[str]) -> Dict[str, Any]:
+        """Analyze health patterns using ML clustering and analysis - handles both string and list symptoms"""
         try:
+            # Convert string symptoms to structured format if needed
+            if isinstance(symptoms, str):
+                structured_symptoms = [{
+                    "name": self._extract_primary_symptom(symptoms),
+                    "severity": self._estimate_severity(symptoms),
+                    "duration_days": self._estimate_duration(symptoms)
+                }]
+            else:
+                structured_symptoms = symptoms
+            
             # Patient clustering analysis
-            similar_patients = self._find_similar_patients(age, symptoms, medical_history)
+            similar_patients = self._find_similar_patients(age, structured_symptoms, medical_history)
             
             # Symptom pattern analysis
-            symptom_patterns = self._analyze_symptom_patterns(symptoms)
+            symptom_patterns = self._analyze_symptom_patterns(structured_symptoms)
             
             # Risk trend analysis
             risk_trends = self._analyze_risk_trends(age, medical_history)
@@ -266,6 +288,46 @@ class HealthMLService:
         }
         
         return trends
+    
+    def _extract_primary_symptom(self, symptoms_text: str) -> str:
+        """Extract primary symptom from text description"""
+        symptoms_text = symptoms_text.lower()
+        common_symptoms = ['chest pain', 'shortness of breath', 'dizziness', 'headache', 
+                          'nausea', 'fatigue', 'fever', 'cough', 'abdominal pain']
+        
+        for symptom in common_symptoms:
+            if symptom in symptoms_text:
+                return symptom
+        return 'fatigue'  # Default fallback
+    
+    def _estimate_severity(self, symptoms_text: str) -> str:
+        """Estimate severity from text description"""
+        symptoms_text = symptoms_text.lower()
+        if any(word in symptoms_text for word in ['severe', 'extreme', 'intense', 'unbearable', 'emergency']):
+            return 'severe'
+        elif any(word in symptoms_text for word in ['moderate', 'significant', 'noticeable', 'concerning']):
+            return 'moderate'
+        else:
+            return 'mild'
+    
+    def _estimate_duration(self, symptoms_text: str) -> int:
+        """Estimate duration in days from text description"""
+        symptoms_text = symptoms_text.lower()
+        
+        # Look for time indicators
+        if any(word in symptoms_text for word in ['weeks', 'week']):
+            return 7
+        elif any(word in symptoms_text for word in ['days', 'day']):
+            # Try to extract number
+            import re
+            numbers = re.findall(r'\d+', symptoms_text)
+            if numbers:
+                return min(int(numbers[0]), 30)  # Cap at 30 days
+            return 3
+        elif any(word in symptoms_text for word in ['hours', 'hour', 'today', 'sudden']):
+            return 1
+        else:
+            return 2  # Default to 2 days
 
 # Initialize ML service
 ml_service = HealthMLService()
