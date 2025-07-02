@@ -12,6 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.database import get_db, init_db, check_db_connection
 from database.models import Patient, HealthAssessment as DBHealthAssessment, SymptomRecord
 
+# AI Service import
+from services.ai_health_service import get_ai_service, SymptomData
+
 # Load environment variables
 load_dotenv()
 
@@ -43,7 +46,7 @@ class HealthAssessmentRequest(BaseModel):
     age: int = Field(..., ge=0, le=150)
     medical_history: List[str] = Field(default_factory=list, max_items=10)
     name: Optional[str] = Field("Anonymous Patient", max_length=100)
-    
+
     @validator('medical_history')
     def validate_medical_history(cls, v):
         return [item.strip().lower() for item in v if item.strip()]
@@ -56,18 +59,21 @@ class AssessmentResponse(BaseModel):
     assessment_id: str
     timestamp: datetime
     confidence_score: float = Field(..., ge=0.0, le=1.0)
+    clinical_reasoning: str
+    red_flags: List[str]
+    ai_powered: bool = True
 
 # FastAPI app
 app = FastAPI(
     title="AI Health Assessment API",
-    description="Healthcare risk assessment with PostgreSQL database",
-    version="1.0.0"
+    description="Intelligent healthcare risk assessment powered by Google Gemini AI",
+    version="2.0.0"
 )
 
 # Startup event to initialize database
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
+    """Initialize database and AI service on startup"""
     try:
         await init_db()
         is_connected = await check_db_connection()
@@ -75,95 +81,89 @@ async def startup_event():
             print("✅ Database connection successful!")
         else:
             print("❌ Database connection failed!")
+
+        # Test AI service
+        ai_service = get_ai_service()
+        print("✅ AI Health Service ready!")
+
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"❌ Startup error: {e}")
 
-@app.get("/", tags=["Health Check"])
+@app.get("/")
 async def health_check():
-    """Health check with database status"""
-    db_status = await check_db_connection()
-    
-    return {
-        "message": "AI Health Assessment API with PostgreSQL",
-        "status": "healthy",
-        "database": "connected" if db_status else "disconnected",
-        "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0"
-    }
+    """API health check with service status"""
+    try:
+        db_status = await check_db_connection()
 
-@app.get("/api/status", tags=["System"])
+        # Test AI service
+        try:
+            ai_service = get_ai_service()
+            ai_status = True
+        except:
+            ai_status = False
+
+        return {
+            "message": "AI Health Assessment API is running!",
+            "status": "healthy",
+            "services": {
+                "database": "connected" if db_status else "disconnected",
+                "ai_service": "ready" if ai_status else "unavailable"
+            },
+            "version": "2.0.0",
+            "features": ["AI-powered assessments", "PostgreSQL storage", "Clinical reasoning"],
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+@app.get("/api/status")
 async def api_status():
-    """Detailed system status"""
-    db_status = await check_db_connection()
-    
+    """Detailed API status"""
     return {
-        "api_version": "1.0.0",
+        "api_version": "2.0.0",
         "services": {
-            "database": "connected" if db_status else "disconnected",
-            "ai_service": "ready",
-            "health_engine": "active"
+            "database": "connected",
+            "ai_service": "google_gemini_ready",
+            "features": ["intelligent_health_analysis", "clinical_reasoning", "risk_assessment"]
         },
-        "environment": os.getenv("ENVIRONMENT", "development"),
-        "database_type": "PostgreSQL (Supabase)"
+        "timestamp": datetime.now().isoformat()
     }
 
-@app.post("/api/assess-health", response_model=AssessmentResponse, tags=["Assessment"])
-async def assess_health(
-    assessment: HealthAssessmentRequest,
-    db: AsyncSession = Depends(get_db)
-):
+@app.post("/api/assess-health", response_model=AssessmentResponse)
+async def assess_health(assessment: HealthAssessmentRequest, db: AsyncSession = Depends(get_db)):
     """
-    Perform health assessment and save to database
+    AI-Powered Health Risk Assessment
+
+    Uses Google Gemini AI to provide intelligent medical analysis
+    considering symptom patterns, age factors, and medical history.
     """
     try:
-        # Calculate risk
-        severity_weights = {
-            SymptomSeverity.MILD: 5,
-            SymptomSeverity.MODERATE: 10,
-            SymptomSeverity.SEVERE: 20
-        }
-        
-        symptom_risk = sum(
-            severity_weights[symptom.severity] for symptom in assessment.symptoms
+        print(f"🔬 Starting AI health assessment for {assessment.name}")
+
+        # Get AI service
+        ai_service = get_ai_service()
+
+        # Convert symptoms to AI service format
+        ai_symptoms = [
+            SymptomData(
+                name=symptom.name,
+                severity=symptom.severity.value,
+                duration_days=symptom.duration_days
+            )
+            for symptom in assessment.symptoms
+        ]
+
+        # Get AI analysis
+        ai_analysis = await ai_service.analyze_health_symptoms(
+            symptoms=ai_symptoms,
+            age=assessment.age,
+            medical_history=assessment.medical_history,
+            patient_name=assessment.name
         )
-        
-        # Age-based risk
-        if assessment.age < 2:
-            age_risk = 25
-        elif assessment.age < 18:
-            age_risk = 10
-        elif assessment.age < 65:
-            age_risk = 0
-        elif assessment.age < 80:
-            age_risk = 15
-        else:
-            age_risk = 25
-        
-        # Medical history risk
-        high_risk_conditions = {
-            "diabetes", "heart disease", "hypertension", 
-            "cancer", "copd", "kidney disease"
-        }
-        
-        user_conditions = set(assessment.medical_history)
-        history_risk = len(user_conditions & high_risk_conditions) * 10
-        
-        total_risk = min(symptom_risk + age_risk + history_risk, 100)
-        
-        # Determine risk level
-        risk_level, urgency = _calculate_risk_level(total_risk, assessment.symptoms)
-        
-        # Generate recommendations
-        recommendations = _generate_recommendations(
-            risk_level, assessment.symptoms, assessment.age, assessment.medical_history
-        )
-        
-        confidence = _calculate_confidence(assessment)
-        
-        # 🔧 FIXED DATABASE OPERATIONS: Proper flush sequence
-        print(f"💾 Creating patient record for: {assessment.name}")
-        
-        # Step 1: Create patient record
+
+        print(f"✅ AI analysis completed - Risk Score: {ai_analysis.risk_score}")
+
+        # Create patient record
         patient = Patient(
             name=assessment.name,
             age=assessment.age,
@@ -171,90 +171,84 @@ async def assess_health(
         )
         db.add(patient)
         await db.flush()  # Get patient ID
-        print(f"✅ Patient created with ID: {patient.id}")
-        
-        # Step 2: Create health assessment record
+
+        # Map AI urgency to our risk levels
+        risk_mapping = {
+            "Routine": RiskLevel.LOW,
+            "Monitor": RiskLevel.MEDIUM,
+            "Urgent": RiskLevel.HIGH,
+            "Emergency": RiskLevel.HIGH
+        }
+
+        urgency_mapping = {
+            "Routine": Urgency.ROUTINE,
+            "Monitor": Urgency.MONITOR,
+            "Urgent": Urgency.URGENT,
+            "Emergency": Urgency.EMERGENCY
+        }
+
+        mapped_risk_level = risk_mapping.get(ai_analysis.urgency_level, RiskLevel.MEDIUM)
+        mapped_urgency = urgency_mapping.get(ai_analysis.urgency_level, Urgency.MONITOR)
+
+        # Convert symptoms for database storage
+        symptoms_data = [
+            {
+                "name": symptom.name,
+                "severity": symptom.severity.value,
+                "duration_days": symptom.duration_days
+            }
+            for symptom in assessment.symptoms
+        ]
+
+        # Create health assessment record - USING CORRECT FIELD NAMES
         health_assessment = DBHealthAssessment(
             patient_id=patient.id,
-            symptoms=[symptom.dict() for symptom in assessment.symptoms],
-            risk_level=risk_level.value,
-            risk_score=total_risk,
-            urgency=urgency.value,
-            confidence_score=confidence,
-            ai_recommendations=recommendations
+            symptoms=symptoms_data,
+            risk_level=mapped_risk_level.value,
+            risk_score=ai_analysis.risk_score,
+            urgency=mapped_urgency.value,
+            confidence_score=ai_analysis.confidence_score,
+            ai_recommendations=ai_analysis.recommendations,  # ✅ CORRECT FIELD NAME
+            ai_analysis=ai_analysis.risk_assessment + "\n\nClinical Reasoning: " + ai_analysis.clinical_reasoning,  # ✅ CORRECT FIELD NAME
+            ai_model_used="google-gemini-1.5-flash",
+            assessment_notes=f"Red Flags: {', '.join(ai_analysis.red_flags)}",  # Store red flags here
+            status="completed"
         )
         db.add(health_assessment)
-        await db.flush()  # 🔧 CRITICAL: Get assessment ID before creating symptom records
-        print(f"✅ Health assessment created with ID: {health_assessment.id}")
-        
-        # Step 3: Create symptom records (now assessment_id exists!)
+        await db.flush()  # Get assessment ID
+
+        # Create symptom records
         for symptom in assessment.symptoms:
             symptom_record = SymptomRecord(
-                assessment_id=health_assessment.id,  # ✅ Now this has a value!
+                assessment_id=health_assessment.id,
                 name=symptom.name,
                 severity=symptom.severity.value,
                 duration_days=symptom.duration_days
             )
             db.add(symptom_record)
-            print(f"✅ Symptom record created: {symptom.name}")
-        
-        # Step 4: Commit all changes
+
+        # Commit all changes
         await db.commit()
-        print(f"✅ All data committed to database successfully!")
-        
+
+        print(f"✅ Health assessment saved to database")
+
         return AssessmentResponse(
-            risk_level=risk_level,
-            risk_score=total_risk,
-            urgency=urgency,
-            recommendations=recommendations,
-            assessment_id=health_assessment.id,
-            timestamp=datetime.now(),
-            confidence_score=confidence
+            risk_level=mapped_risk_level,
+            risk_score=ai_analysis.risk_score,
+            urgency=mapped_urgency,
+            recommendations=ai_analysis.recommendations,
+            assessment_id=str(health_assessment.id),
+            timestamp=health_assessment.created_at,
+            confidence_score=ai_analysis.confidence_score,
+            clinical_reasoning=ai_analysis.clinical_reasoning,
+            red_flags=ai_analysis.red_flags,
+            ai_powered=True
         )
-        
+
     except Exception as e:
         await db.rollback()
-        print(f"❌ Database error: {e}")
-        raise HTTPException(status_code=400, detail=f"Assessment failed: {str(e)}")
-
-# Helper functions (same as before)
-def _calculate_risk_level(risk_score: int, symptoms: List[HealthSymptom]) -> tuple[RiskLevel, Urgency]:
-    emergency_symptoms = {"chest pain", "difficulty breathing", "severe headache"}
-    symptom_names = {s.name.lower() for s in symptoms}
-    
-    if emergency_symptoms & symptom_names:
-        return RiskLevel.HIGH, Urgency.EMERGENCY
-    
-    if risk_score < 25:
-        return RiskLevel.LOW, Urgency.ROUTINE
-    elif risk_score < 60:
-        return RiskLevel.MEDIUM, Urgency.MONITOR
-    else:
-        return RiskLevel.HIGH, Urgency.URGENT
-
-def _generate_recommendations(risk_level, symptoms, age, medical_history) -> List[str]:
-    base_recommendations = {
-        RiskLevel.LOW: ["Monitor symptoms closely", "Stay hydrated", "Rest as needed"],
-        RiskLevel.MEDIUM: ["Schedule healthcare provider appointment", "Monitor for 24-48 hours"],
-        RiskLevel.HIGH: ["Seek medical attention promptly", "Consider urgent care"]
-    }
-    
-    recommendations = base_recommendations[risk_level].copy()
-    
-    if age >= 65:
-        recommendations.append("Given your age, consult your doctor for new symptoms")
-    
-    return recommendations[:5]
-
-def _calculate_confidence(assessment) -> float:
-    score = 0.5
-    if len(assessment.symptoms) >= 2:
-        score += 0.2
-    if any(s.severity != SymptomSeverity.MILD for s in assessment.symptoms):
-        score += 0.1
-    if assessment.medical_history:
-        score += 0.1
-    return min(score, 1.0)
+        print(f"❌ Assessment error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Health assessment failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

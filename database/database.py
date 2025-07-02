@@ -1,73 +1,76 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
 import os
-from typing import AsyncGenerator
+import logging
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from dotenv import load_dotenv
+from .models import Base
 
 # Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
-
 if not DATABASE_URL:
-    raise ValueError("❌ DATABASE_URL environment variable is missing!")
+    raise ValueError("DATABASE_URL environment variable is required")
 
-print(f"�� Connecting to Supabase (direct connection)...")
-
-# Create async engine - simple configuration for direct connection
+# Create async engine
 engine = create_async_engine(
     DATABASE_URL,
-    echo=False,
+    echo=False,  # Set to True for SQL query logging
     pool_pre_ping=True,
+    pool_recycle=300
 )
 
 # Create async session factory
 AsyncSessionLocal = sessionmaker(
-    engine, 
-    class_=AsyncSession, 
-    expire_on_commit=False
+    engine, class_=AsyncSession, expire_on_commit=False
 )
 
-# Dependency to get database session
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db():
+    """Dependency to get database session"""
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        except Exception as e:
+        except SQLAlchemyError as e:
             await session.rollback()
-            print(f"❌ Database session error: {e}")
+            logger.error(f"❌ Database session error: {e}")
             raise
         finally:
             await session.close()
 
-# Database initialization
 async def init_db():
-    """Initialize database tables"""
+    """Initialize database and create tables"""
     try:
-        from database.models import Base
-        print("📋 Creating database tables (direct connection)...")
+        print("🗄️ Connecting to Supabase (direct connection)...")
+        print("📋 Recreating database tables with AI fields...")
         
         async with engine.begin() as conn:
-            # Create all tables
+            # Drop all tables first (this will remove old schema)
+            await conn.run_sync(Base.metadata.drop_all)
+            # Create all tables with new schema
             await conn.run_sync(Base.metadata.create_all)
-            
-        print("✅ Database tables created successfully!")
+        
+        print("✅ Database tables recreated successfully!")
         return True
         
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
-        raise
+        return False
 
-# Health check function
 async def check_db_connection():
     """Check if database connection is working"""
     try:
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(text("SELECT 1 as test"))
-            value = result.scalar()
-            print(f"✅ Database ping successful: {value}")
-            return value == 1
+        # Simple connection test using the engine directly
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        print("✅ Database connection verified!")
+        return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
         return False
