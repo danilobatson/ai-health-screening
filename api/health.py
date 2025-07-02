@@ -1,5 +1,4 @@
 import json
-import os
 from http.server import BaseHTTPRequestHandler
 
 class handler(BaseHTTPRequestHandler):
@@ -9,15 +8,11 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         
-        # Check environment
-        gemini_configured = bool(os.getenv('GEMINI_API_KEY'))
-        
         response = {
             "status": "healthy",
-            "service": "AI Healthcare Backend",
-            "platform": "Vercel Python Serverless",
-            "gemini_configured": gemini_configured,
-            "version": "simplified-production"
+            "service": "AI Healthcare Backend", 
+            "platform": "Vercel Serverless",
+            "version": "minimal-production"
         }
         
         self.wfile.write(json.dumps(response).encode('utf-8'))
