@@ -19,9 +19,10 @@ import {
   Badge,
   Grid,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { IconStethoscope, IconAlertTriangle, IconCheck } from '@tabler/icons-react';
+import { IconStethoscope, IconAlertTriangle, IconCheck, IconShieldCheck } from '@tabler/icons-react';
+import { healthAssessmentSchema, validateSymptomName, VALID_MEDICAL_CONDITIONS } from '@/lib/validation';
 
 const SEVERITY_OPTIONS = [
   { value: 'mild', label: 'Mild' },
@@ -31,12 +32,8 @@ const SEVERITY_OPTIONS = [
 
 const COMMON_SYMPTOMS = [
   'chest pain', 'shortness of breath', 'dizziness', 'headache',
-  'nausea', 'fatigue', 'fever', 'cough', 'abdominal pain'
-];
-
-const MEDICAL_CONDITIONS = [
-  'hypertension', 'diabetes', 'heart disease', 'asthma',
-  'high cholesterol', 'obesity', 'anxiety', 'depression'
+  'nausea', 'fatigue', 'fever', 'cough', 'abdominal pain',
+  'back pain', 'joint pain', 'muscle pain'
 ];
 
 export default function HealthAssessmentForm({ onAssessmentComplete }) {
@@ -44,28 +41,36 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
   const [currentSymptoms, setCurrentSymptoms] = useState([]);
 
   const form = useForm({
+    validate: zodResolver(healthAssessmentSchema),
     initialValues: {
       name: '',
       age: '',
       symptoms: [],
       medicalHistory: [],
     },
-    validate: {
-      name: (value) => (!value ? 'Name is required' : null),
-      age: (value) => (!value || value < 1 || value > 120 ? 'Valid age is required' : null),
-      symptoms: (value) => (value.length === 0 ? 'At least one symptom is required' : null),
-    },
   });
 
   const addSymptom = (symptomName) => {
+    // Validate symptom name for security
+    if (!validateSymptomName(symptomName)) {
+      notifications.show({
+        title: 'Invalid Symptom',
+        message: 'Please select from the provided symptom list',
+        color: 'red',
+        icon: <IconAlertTriangle size={16} />,
+      });
+      return;
+    }
+
     if (!currentSymptoms.find(s => s.name === symptomName)) {
       const newSymptom = {
         name: symptomName,
         severity: 'mild',
         duration_days: 1
       };
-      setCurrentSymptoms([...currentSymptoms, newSymptom]);
-      form.setFieldValue('symptoms', [...currentSymptoms, newSymptom]);
+      const updatedSymptoms = [...currentSymptoms, newSymptom];
+      setCurrentSymptoms(updatedSymptoms);
+      form.setFieldValue('symptoms', updatedSymptoms);
     }
   };
 
@@ -87,28 +92,39 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
     setLoading(true);
     
     try {
+      // Additional validation
+      if (values.age < 1 || values.age > 120) {
+        throw new Error('Invalid age provided');
+      }
+
+      // Sanitize medical history
+      const sanitizedHistory = values.medicalHistory.filter(condition => 
+        VALID_MEDICAL_CONDITIONS.includes(condition)
+      );
+
       const response = await fetch('http://localhost:8000/api/assess-health', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: values.name,
+          name: values.name.trim(),
           age: parseInt(values.age),
           symptoms: currentSymptoms,
-          medical_history: values.medicalHistory,
+          medical_history: sanitizedHistory,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
       
       notifications.show({
         title: 'Assessment Complete',
-        message: 'AI analysis completed successfully',
+        message: `AI analysis completed with ${Math.round(result.confidence_score * 100)}% confidence`,
         color: 'green',
         icon: <IconCheck size={16} />,
       });
@@ -118,8 +134,8 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
     } catch (error) {
       console.error('Assessment error:', error);
       notifications.show({
-        title: 'Assessment Failed',
-        message: 'Please ensure Python backend is running on port 8000',
+        title: 'Assessment Error',
+        message: error.message || 'Please ensure all fields are valid and try again',
         color: 'red',
         icon: <IconAlertTriangle size={16} />,
       });
@@ -136,7 +152,12 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
             <IconStethoscope size={32} color="#2563eb" />
             <Title order={2}>Health Assessment</Title>
           </Group>
-          <Badge color="blue" size="lg">AI Powered</Badge>
+          <Group>
+            <Badge color="blue" size="lg">AI Powered</Badge>
+            <Badge color="green" size="sm" leftSection={<IconShieldCheck size={12} />}>
+              Validated
+            </Badge>
+          </Group>
         </Group>
 
         <form onSubmit={form.onSubmit(submitAssessment)}>
@@ -169,8 +190,9 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
             <MultiSelect
               label="Medical History"
               placeholder="Select existing conditions"
-              data={MEDICAL_CONDITIONS}
+              data={VALID_MEDICAL_CONDITIONS}
               searchable
+              maxValues={10}
               {...form.getInputProps('medicalHistory')}
             />
 
@@ -178,7 +200,7 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
             <Text fw={500} size="lg" mt="md" mb="xs">Current Symptoms</Text>
             
             <Text size="sm" c="dimmed" mb="xs">
-              Select common symptoms or add custom ones:
+              Select symptoms from the validated list:
             </Text>
 
             <Chip.Group>
@@ -188,6 +210,7 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
                     key={symptom}
                     variant="outline"
                     onClick={() => addSymptom(symptom)}
+                    disabled={currentSymptoms.some(s => s.name === symptom)}
                   >
                     {symptom}
                   </Chip>
@@ -233,9 +256,22 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
               </Card>
             ))}
 
+            {/* Form Validation Errors */}
             {form.errors.symptoms && (
               <Alert color="red" variant="light">
                 {form.errors.symptoms}
+              </Alert>
+            )}
+
+            {form.errors.name && (
+              <Alert color="red" variant="light">
+                {form.errors.name}
+              </Alert>
+            )}
+
+            {form.errors.age && (
+              <Alert color="red" variant="light">
+                {form.errors.age}
               </Alert>
             )}
 
@@ -251,6 +287,12 @@ export default function HealthAssessmentForm({ onAssessmentComplete }) {
                 {loading ? 'Analyzing with AI...' : 'Get AI Health Assessment'}
               </Button>
             </Group>
+
+            {/* Security Notice */}
+            <Text size="xs" ta="center" c="dimmed">
+              <IconShieldCheck size={12} style={{ display: 'inline', marginRight: '4px' }} />
+              All inputs are validated and sanitized for security
+            </Text>
           </Stack>
         </form>
       </Card>
