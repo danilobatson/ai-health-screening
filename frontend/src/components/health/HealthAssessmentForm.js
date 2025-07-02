@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  TextInput, Select, Textarea, Button, Card, Title, Text, Alert, 
+import {
+  TextInput, Select, Textarea, Button, Card, Title, Text, Alert,
   LoadingOverlay, Badge, Group, Stack, Divider, Paper, Progress,
   ActionIcon, Tooltip
 } from '@mantine/core';
-import { 
+import {
   IconAlertCircle, IconCheck, IconUser, IconCalendar, IconGenderBigender,
   IconStethoscope, IconPill, IconBrain, IconChartBar, IconShieldCheck,
   IconRefresh
 } from '@tabler/icons-react';
 
 // API configuration
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000'\;
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
 
 export default function HealthAssessmentForm() {
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,7 @@ export default function HealthAssessmentForm() {
 
       const result = await response.json();
       setAssessmentResult(result);
-      
+
     } catch (error) {
       console.error('Assessment error:', error);
       setError(error.message || 'Assessment failed. Please try again.');
@@ -132,12 +132,12 @@ export default function HealthAssessmentForm() {
 
       <Card shadow="lg" padding="xl" radius="lg" withBorder>
         <LoadingOverlay visible={loading} overlayBlur={2} />
-        
+
         {!assessmentResult ? (
           <form onSubmit={handleSubmit}>
             {/* Progress Indicator */}
-            <Progress 
-              value={step === 1 ? 33 : step === 2 ? 66 : 100} 
+            <Progress
+              value={step === 1 ? 33 : step === 2 ? 66 : 100}
               mb="xl"
               size="lg"
               radius="xl"
@@ -151,7 +151,7 @@ export default function HealthAssessmentForm() {
                   <IconUser size={20} />
                   <Title order={3}>Personal Information</Title>
                 </Group>
-                
+
                 <TextInput
                   icon={<IconUser size={16} />}
                   label="Full Name"
@@ -193,7 +193,7 @@ export default function HealthAssessmentForm() {
                   />
                 </Group>
 
-                <Button 
+                <Button
                   onClick={() => setStep(2)}
                   disabled={!validateStep(1)}
                   size="lg"
@@ -248,15 +248,15 @@ export default function HealthAssessmentForm() {
                 />
 
                 <Group>
-                  <Button 
+                  <Button
                     variant="subtle"
                     onClick={() => setStep(1)}
                     size="md"
                   >
                     ← Back
                   </Button>
-                  
-                  <Button 
+
+                  <Button
                     type="submit"
                     disabled={!validateStep(2)}
                     loading={loading}
@@ -276,7 +276,7 @@ export default function HealthAssessmentForm() {
             <Group position="apart">
               <Title order={2} color="blue">📋 Assessment Results</Title>
               <Tooltip label="Start new assessment">
-                <ActionIcon 
+                <ActionIcon
                   onClick={resetForm}
                   size="lg"
                   color="blue"
@@ -293,7 +293,7 @@ export default function HealthAssessmentForm() {
                 <IconBrain size={24} color="#1976d2" />
                 <Title order={3} color="blue">🤖 AI Analysis</Title>
               </Group>
-              
+
               <Stack spacing="sm">
                 <div>
                   <Text size="sm" weight={600} color="dimmed">REASONING</Text>
@@ -302,7 +302,7 @@ export default function HealthAssessmentForm() {
 
                 <Group>
                   <Text size="sm" weight={600} color="dimmed">URGENCY LEVEL</Text>
-                  <Badge 
+                  <Badge
                     color={getRiskColor(assessmentResult.ai_analysis?.urgency)}
                     size="lg"
                     variant="filled"
@@ -331,7 +331,7 @@ export default function HealthAssessmentForm() {
                 <IconChartBar size={24} color="#388e3c" />
                 <Title order={3} color="green">📊 ML Risk Assessment</Title>
               </Group>
-              
+
               <Group grow mb="md">
                 <div style={{ textAlign: 'center' }}>
                   <Text size="xs" color="dimmed" weight={600}>RISK SCORE</Text>
@@ -339,17 +339,17 @@ export default function HealthAssessmentForm() {
                     {assessmentResult.ml_assessment?.risk_score}/1.0
                   </Text>
                 </div>
-                
+
                 <div style={{ textAlign: 'center' }}>
                   <Text size="xs" color="dimmed" weight={600}>CONFIDENCE</Text>
                   <Text size="xl" weight={700}>
                     {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
                   </Text>
                 </div>
-                
+
                 <div style={{ textAlign: 'center' }}>
                   <Text size="xs" color="dimmed" weight={600}>RISK LEVEL</Text>
-                  <Badge 
+                  <Badge
                     color={getRiskColor(assessmentResult.ml_assessment?.risk_level)}
                     size="lg"
                     variant="filled"
@@ -375,7 +375,7 @@ export default function HealthAssessmentForm() {
             {/* Disclaimer */}
             <Alert icon={<IconShieldCheck size="1rem" />} color="blue" variant="light">
               <Text size="sm">
-                <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice. 
+                <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice.
                 Please consult with healthcare professionals for medical concerns, especially for urgent symptoms.
               </Text>
             </Alert>
