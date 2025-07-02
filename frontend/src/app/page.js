@@ -1,22 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Container, 
-  Title, 
-  Text, 
-  Button, 
-  Group, 
+import {
+  Container,
+  Title,
+  Text,
+  Button,
+  Group,
   Stack,
   Card,
   Badge,
   Grid
 } from '@mantine/core';
-import { 
-  IconHeartHandshake, 
-  IconStethoscope, 
+import {
+  IconHeartHandshake,
+  IconStethoscope,
   IconReportMedical,
-  IconBrain 
+  IconBrain
 } from '@tabler/icons-react';
 import HealthAssessmentForm from '@/components/health/HealthAssessmentForm';
 import AssessmentResults from '@/components/health/AssessmentResults';
@@ -47,7 +47,7 @@ export default function HomePage() {
   // Show results view
   if (currentView === 'results') {
     return (
-      <AssessmentResults 
+      <AssessmentResults
         results={assessmentResults}
         onNewAssessment={handleNewAssessment}
       />
@@ -57,7 +57,7 @@ export default function HomePage() {
   // Show assessment form
   if (currentView === 'assessment') {
     return (
-      <HealthAssessmentForm 
+      <HealthAssessmentForm
         onAssessmentComplete={handleAssessmentComplete}
       />
     );
@@ -72,15 +72,15 @@ export default function HomePage() {
           <IconHeartHandshake size={50} color="#2563eb" />
           <IconBrain size={45} color="#16a34a" />
         </Group>
-        
+
         <Title order={1} size="h1" ta="center" c="blue">
           AI Health Assessment System
         </Title>
-        
+
         <Text size="lg" ta="center" c="dimmed" maw={600}>
           Professional healthcare dashboard powered by Google Gemini AI and clinical reasoning
         </Text>
-        
+
         <Group>
           <Badge color="green" size="lg">AI Powered</Badge>
           <Badge color="blue" size="lg">Clinical Grade</Badge>
@@ -101,7 +101,7 @@ export default function HomePage() {
             </Stack>
           </Card>
         </Grid.Col>
-        
+
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
             <Stack align="center" gap="md">
@@ -113,7 +113,7 @@ export default function HomePage() {
             </Stack>
           </Card>
         </Grid.Col>
-        
+
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
             <Stack align="center" gap="md">
@@ -129,20 +129,15 @@ export default function HomePage() {
 
       {/* Call to Action */}
       <Group justify="center">
-        <Button 
-          size="xl" 
-          color="blue" 
+        <Button
+          size="xl"
+          color="blue"
           leftSection={<IconHeartHandshake size={20} />}
           onClick={handleStartAssessment}
         >
           Start Health Assessment
         </Button>
       </Group>
-      
-      {/* Portfolio Note */}
-      <Text size="xs" ta="center" c="dimmed" mt="xl">
-        Portfolio Demo: Python FastAPI + Google Gemini AI + Next.js + Mantine UI
-      </Text>
     </Container>
   );
 }

@@ -12,7 +12,7 @@ except ImportError:
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        """Real AI health assessment with Google Gemini"""
+        """Real AI health assessment with proper error handling"""
         try:
             # CORS headers
             self.send_response(200)
@@ -22,27 +22,65 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
             self.end_headers()
             
-            # Parse request
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode('utf-8'))
+            # Parse request safely
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                if content_length == 0:
+                    raise ValueError("Empty request body")
+                    
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON format: {str(e)}")
+            except Exception as e:
+                raise ValueError(f"Request parsing error: {str(e)}")
             
-            # Validate required fields
-            required = ['symptoms', 'age', 'gender', 'medical_history', 'current_medications']
-            for field in required:
+            # Validate and clean required fields
+            required_fields = {
+                'name': str,
+                'age': int,
+                'gender': str,
+                'symptoms': str,
+                'medical_history': str,
+                'current_medications': str
+            }
+            
+            cleaned_data = {}
+            for field, field_type in required_fields.items():
                 if field not in data:
-                    raise ValueError(f"Missing field: {field}")
+                    if field in ['medical_history', 'current_medications']:
+                        cleaned_data[field] = ''  # Optional fields
+                    else:
+                        raise ValueError(f"Missing required field: {field}")
+                else:
+                    try:
+                        if field_type == int:
+                            cleaned_data[field] = int(data[field])
+                        else:
+                            cleaned_data[field] = str(data[field]).strip()
+                    except (ValueError, TypeError):
+                        raise ValueError(f"Invalid format for field '{field}': expected {field_type.__name__}")
             
-            # Enhanced ML Risk Assessment (same logic as before)
-            age = int(data['age'])
-            symptoms = data['symptoms'].lower()
-            medical_history = data['medical_history'].lower() if data['medical_history'] else ""
+            # Additional validation
+            if cleaned_data['age'] < 1 or cleaned_data['age'] > 120:
+                raise ValueError("Age must be between 1 and 120 years")
             
-            # Risk scoring algorithm
+            if len(cleaned_data['symptoms']) < 10:
+                raise ValueError("Symptoms description must be at least 10 characters")
+            
+            if cleaned_data['gender'] not in ['male', 'female', 'other', 'prefer-not-to-say']:
+                raise ValueError("Invalid gender value")
+            
+            # Process with validated data
+            age = cleaned_data['age']
+            symptoms = cleaned_data['symptoms'].lower()
+            medical_history = cleaned_data['medical_history'].lower()
+            
+            # Risk assessment
             risk_score = 0.1
             risk_factors = []
             
-            # Age-based risk
+            # Age factors
             if age > 75:
                 risk_score += 0.35
                 risk_factors.append(f"Advanced age ({age} years) - increased risk")
@@ -53,7 +91,7 @@ class handler(BaseHTTPRequestHandler):
                 risk_score += 0.15
                 risk_factors.append(f"Middle age ({age} years) - mild risk factor")
             
-            # Emergency symptoms detection
+            # Symptom analysis
             emergency_symptoms = [
                 'chest pain', 'difficulty breathing', 'shortness of breath', 'severe pain',
                 'blood', 'seizure', 'unconscious', 'stroke', 'heart attack',
@@ -80,7 +118,7 @@ class handler(BaseHTTPRequestHandler):
                         risk_factors.append(f"Critical symptom: {symptom}")
                         break
             
-            # Medical history risk factors
+            # Medical history
             high_risk_conditions = [
                 'diabetes', 'heart disease', 'hypertension', 'cancer', 'kidney disease',
                 'liver disease', 'copd', 'asthma', 'stroke history', 'blood clots'
@@ -93,7 +131,6 @@ class handler(BaseHTTPRequestHandler):
             
             risk_score = min(risk_score, 1.0)
             
-            # Determine urgency level
             if risk_score >= 0.7:
                 risk_level = "high"
                 urgency = "high"
@@ -104,149 +141,75 @@ class handler(BaseHTTPRequestHandler):
                 risk_level = "low"
                 urgency = "low"
             
-            # GOOGLE GEMINI AI WITH STRUCTURED OUTPUT
+            # Try Gemini AI
             gemini_api_key = os.getenv('GEMINI_API_KEY')
             gemini_success = False
             ai_analysis = None
-            model_used = "Enhanced Medical Algorithms"
             
             if GEMINI_AVAILABLE and gemini_api_key:
                 try:
-                    print(f"Attempting Gemini API call with structured prompt...")
-                    
-                    # Configure Gemini
                     genai.configure(api_key=gemini_api_key)
                     
-                    # Try modern models first
-                    model_names = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro']
-                    
-                    model = None
-                    working_model = None
-                    
-                    for model_name in model_names:
+                    for model_name in ['gemini-2.0-flash-lite', 'gemini-1.5-flash']:
                         try:
                             model = genai.GenerativeModel(model_name)
-                            test_response = model.generate_content("Test")
-                            if test_response and test_response.text:
-                                working_model = model_name
-                                print(f"Using model: {model_name}")
-                                break
-                        except Exception as e:
-                            continue
-                    
-                    if model and working_model:
-                        # STRUCTURED PROMPT FOR CONSISTENT OUTPUT
-                        prompt = f"""You are a medical AI providing preliminary health assessments. Analyze this patient case and provide a structured response.
+                            
+                            prompt = f"""Provide a medical assessment for a {age}-year-old {cleaned_data['gender']} with these symptoms: {cleaned_data['symptoms']}
 
-PATIENT INFORMATION:
-- Age: {age} years old
-- Gender: {data['gender']}
-- Symptoms: {data['symptoms']}
-- Medical History: {data['medical_history'] or 'None reported'}
-- Current Medications: {data['current_medications'] or 'None reported'}
+Medical History: {cleaned_data['medical_history'] or 'None'}
+Medications: {cleaned_data['current_medications'] or 'None'}
 
-ASSESSMENT CONTEXT:
-- Calculated risk level: {urgency} priority
-- Risk score: {risk_score}
+Provide exactly this format:
 
-REQUIRED OUTPUT FORMAT:
-Provide exactly 6 medical recommendations as separate, actionable statements. Each recommendation should be:
-1. Specific and actionable
-2. Medically appropriate for {urgency} priority symptoms
-3. Written for patient understanding
-4. Professional medical guidance
+REASONING: [2-3 sentences of clinical assessment]
 
-START each recommendation on a new line with "RECOMMENDATION:" followed by the advice.
-
-Also provide 2-3 sentences of clinical reasoning explaining why these symptoms require {urgency} priority attention.
-
-START the clinical reasoning with "REASONING:" followed by your analysis.
-
-Example format:
-REASONING: [Your clinical analysis here]
-
-RECOMMENDATION: [First actionable recommendation]
-RECOMMENDATION: [Second actionable recommendation]
-RECOMMENDATION: [Third actionable recommendation]
-RECOMMENDATION: [Fourth actionable recommendation]
-RECOMMENDATION: [Fifth actionable recommendation]
-RECOMMENDATION: [Sixth actionable recommendation]"""
-                        
-                        # Generate AI response
-                        response = model.generate_content(prompt)
-                        ai_text = response.text
-                        
-                        print(f"Gemini response: {len(ai_text)} chars from {working_model}")
-                        
-                        # Parse structured response
-                        lines = [line.strip() for line in ai_text.split('\n') if line.strip()]
-                        
-                        reasoning = ""
-                        recommendations = []
-                        
-                        for line in lines:
-                            if line.startswith('REASONING:'):
-                                reasoning = line.replace('REASONING:', '').strip()
-                            elif line.startswith('RECOMMENDATION:'):
-                                rec = line.replace('RECOMMENDATION:', '').strip()
-                                if rec and len(rec) > 10:
-                                    recommendations.append(rec)
-                        
-                        # If parsing failed, extract manually
-                        if not reasoning or len(recommendations) < 4:
-                            # Fallback parsing
-                            reasoning_found = False
-                            for line in lines:
-                                if not reasoning_found and len(line) > 30 and 'symptom' in line.lower():
-                                    reasoning = line
-                                    reasoning_found = True
-                                elif any(word in line.lower() for word in ['should', 'recommend', 'seek', 'contact', 'monitor', 'consider']):
-                                    clean_line = line.replace('*', '').replace('-', '').replace('•', '').strip()
-                                    if clean_line and len(clean_line) > 15:
-                                        recommendations.append(clean_line)
-                        
-                        # Ensure we have complete data
-                        if not reasoning:
-                            reasoning = f"Clinical assessment indicates {urgency} priority attention is needed for {age}-year-old {data['gender']} presenting with {data['symptoms'][:80]}. The combination of symptoms and patient factors requires prompt medical evaluation."
-                        
-                        # Ensure we have 6 quality recommendations
-                        default_recommendations = [
-                            f"Seek {urgency} priority medical evaluation for symptom assessment",
-                            "Contact healthcare provider or emergency services as appropriate",
-                            "Monitor symptoms closely and document any changes",
-                            "Maintain adequate hydration and rest in comfortable position",
-                            "Have someone stay with patient if symptoms are concerning",
-                            "Do not delay seeking medical care if symptoms worsen"
-                        ]
-                        
-                        while len(recommendations) < 6:
-                            for default_rec in default_recommendations:
-                                if default_rec not in recommendations:
-                                    recommendations.append(default_rec)
+RECOMMENDATION: [First specific recommendation]
+RECOMMENDATION: [Second specific recommendation]  
+RECOMMENDATION: [Third specific recommendation]
+RECOMMENDATION: [Fourth specific recommendation]
+RECOMMENDATION: [Fifth specific recommendation]
+RECOMMENDATION: [Sixth specific recommendation]"""
+                            
+                            response = model.generate_content(prompt)
+                            
+                            if response and response.text:
+                                ai_text = response.text
+                                
+                                # Parse structured response
+                                lines = [line.strip() for line in ai_text.split('\n') if line.strip()]
+                                reasoning = ""
+                                recommendations = []
+                                
+                                for line in lines:
+                                    if line.startswith('REASONING:'):
+                                        reasoning = line.replace('REASONING:', '').strip()
+                                    elif line.startswith('RECOMMENDATION:'):
+                                        rec = line.replace('RECOMMENDATION:', '').strip()
+                                        if rec and len(rec) > 10:
+                                            recommendations.append(rec)
+                                
+                                if reasoning and len(recommendations) >= 4:
+                                    ai_analysis = {
+                                        "reasoning": reasoning,
+                                        "recommendations": recommendations[:6],
+                                        "urgency": urgency,
+                                        "explanation": f"Analysis by {model_name} with clinical reasoning and evidence-based recommendations.",
+                                        "ai_confidence": "high",
+                                        "model_used": f"Google {model_name}"
+                                    }
+                                    gemini_success = True
                                     break
-                            break
-                        
-                        ai_analysis = {
-                            "reasoning": reasoning,
-                            "recommendations": recommendations[:6],
-                            "urgency": urgency,
-                            "explanation": f"Professional medical assessment provided by {working_model} with structured clinical reasoning.",
-                            "ai_confidence": "high",
-                            "model_used": f"Google {working_model}"
-                        }
-                        
-                        model_used = f"Google {working_model}"
-                        gemini_success = True
-                        print("Structured Gemini AI analysis completed successfully")
-                        
+                        except Exception as e:
+                            print(f"Model {model_name} failed: {str(e)}")
+                            continue
+                            
                 except Exception as e:
-                    print(f"Gemini API error: {str(e)}")
+                    print(f"Gemini setup error: {str(e)}")
             
-            # Fallback if Gemini failed - SAME STRUCTURE
+            # Fallback analysis
             if not gemini_success:
-                print("Using fallback algorithmic analysis")
                 ai_analysis = {
-                    "reasoning": f"Clinical assessment for {age}-year-old {data['gender']} presenting with {data['symptoms'][:100]}. Risk stratification indicates {urgency} priority based on symptom presentation, age demographics, and medical history factors.",
+                    "reasoning": f"Clinical assessment for {age}-year-old {cleaned_data['gender']} presenting with {cleaned_data['symptoms'][:100]}. Risk stratification indicates {urgency} priority based on symptom presentation and demographic factors.",
                     "recommendations": [
                         f"Seek {urgency} priority medical evaluation for comprehensive assessment",
                         "Document symptom progression and severity changes carefully",
@@ -256,12 +219,12 @@ RECOMMENDATION: [Sixth actionable recommendation]"""
                         "Do not delay seeking care if symptoms significantly worsen"
                     ],
                     "urgency": urgency,
-                    "explanation": "Professional medical assessment using evidence-based algorithms and risk stratification.",
+                    "explanation": "Professional medical assessment using evidence-based algorithms.",
                     "ai_confidence": "high",
                     "model_used": "Enhanced Medical Algorithms"
                 }
             
-            # ML Assessment - CONSISTENT STRUCTURE
+            # ML Assessment
             ml_assessment = {
                 "risk_score": round(risk_score, 2),
                 "confidence": round(min(0.95, 0.75 + (len(risk_factors) * 0.05)), 2),
@@ -273,29 +236,44 @@ RECOMMENDATION: [Sixth actionable recommendation]"""
                 ]
             }
             
-            # Final Response
+            # Success response
             response_data = {
                 "ai_analysis": ai_analysis,
                 "ml_assessment": ml_assessment,
                 "status": "success",
-                "backend": f"Vercel Python + {model_used}",
+                "backend": f"Vercel Python + {ai_analysis['model_used']}",
                 "gemini_enabled": GEMINI_AVAILABLE and bool(gemini_api_key),
                 "gemini_success": gemini_success
             }
             
             self.wfile.write(json.dumps(response_data).encode('utf-8'))
             
-        except Exception as e:
+        except ValueError as e:
+            # Validation errors - return 400
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
             error_response = {
                 "error": str(e),
-                "status": "error",
+                "status": "validation_error",
                 "backend": "Vercel Python Serverless"
             }
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
             
+        except Exception as e:
+            # Server errors - return 500
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
+            
+            error_response = {
+                "error": f"Server error: {str(e)}",
+                "status": "server_error",
+                "backend": "Vercel Python Serverless"
+            }
             self.wfile.write(json.dumps(error_response).encode('utf-8'))
     
     def do_OPTIONS(self):
