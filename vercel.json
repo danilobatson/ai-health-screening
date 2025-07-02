@@ -1,6 +1,30 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "installCommand": "npm install"
+  "functions": {
+    "api/assess-health.py": {
+      "runtime": "python3.9"
+    },
+    "api/health.py": {
+      "runtime": "python3.9"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/assess-health",
+      "dest": "/api/assess-health.py"
+    },
+    {
+      "src": "/api/health", 
+      "dest": "/api/health.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
+    }
+  ],
+  "build": {
+    "env": {
+      "PYTHONPATH": "."
+    }
+  }
 }

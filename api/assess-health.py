@@ -1,18 +1,25 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import json
 import os
 import sys
 
-# Add project root to path for imports
+# Add project root to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from services.ai_health_service import HealthAIService
-from ml_services.health_ml_service import HealthMLService
+# Import your existing services
+try:
+    from services.ai_health_service import HealthAIService
+    from ml_services.health_ml_service import HealthMLService
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback for development
+    pass
 
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS for Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,10 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize services
-ai_service = HealthAIService()
-ml_service = HealthMLService()
-
 class HealthAssessmentRequest(BaseModel):
     symptoms: str
     age: int
@@ -32,23 +35,36 @@ class HealthAssessmentRequest(BaseModel):
     medical_history: str
     current_medications: str
 
-@app.post("/api/assess-health")
-async def assess_health(request: HealthAssessmentRequest):
+@app.post("/")
+async def assess_health_endpoint(request: Request):
     try:
+        # Parse request body
+        body = await request.json()
+        
+        # Validate required fields
+        required_fields = ['symptoms', 'age', 'gender', 'medical_history', 'current_medications']
+        for field in required_fields:
+            if field not in body:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        # Initialize services
+        ai_service = HealthAIService()
+        ml_service = HealthMLService()
+        
         # AI Analysis
         ai_analysis = await ai_service.analyze_symptoms(
-            symptoms=request.symptoms,
-            age=request.age,
-            gender=request.gender,
-            medical_history=request.medical_history,
-            current_medications=request.current_medications
+            symptoms=body['symptoms'],
+            age=body['age'],
+            gender=body['gender'],
+            medical_history=body['medical_history'],
+            current_medications=body['current_medications']
         )
         
         # ML Risk Assessment
         ml_assessment = ml_service.assess_risk(
-            symptoms=request.symptoms,
-            age=request.age,
-            gender=request.gender
+            symptoms=body['symptoms'],
+            age=body['age'],
+            gender=body['gender']
         )
         
         return {
@@ -56,12 +72,14 @@ async def assess_health(request: HealthAssessmentRequest):
             "ml_assessment": ml_assessment,
             "status": "success"
         }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error in assess_health: {str(e)}")
+        return {
+            "error": str(e),
+            "status": "error"
+        }
 
-@app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "service": "AI Healthcare API"}
-
-# Export for Vercel
-app = app
+# Vercel requires this handler function
+def handler(request, response):
+    return app(request, response)
