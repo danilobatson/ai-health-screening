@@ -1,40 +1,40 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  TextInput, Select, Textarea, Button, Card, Title, Text, Alert,
+import { 
+  TextInput, Select, Textarea, Button, Card, Title, Text, Alert, 
   Loader, Badge, Group, Stack, Paper, NumberInput, Overlay
 } from '@mantine/core';
-import {
+import { 
   IconAlertCircle, IconCheck, IconUser, IconStethoscope,
-  IconBrain, IconShieldCheck, IconRefresh
+  IconBrain, IconShieldCheck
 } from '@tabler/icons-react';
 
 // Simple validation
 const validateForm = (data) => {
   const errors = {};
-
+  
   if (!data.name || data.name.length < 2) {
     errors.name = 'Name must be at least 2 characters';
   }
-
+  
   const age = parseInt(data.age);
   if (!age || age < 1 || age > 120) {
     errors.age = 'Age must be between 1 and 120 years';
   }
-
+  
   if (!data.gender) {
     errors.gender = 'Please select a gender';
   }
-
+  
   if (!data.symptoms || data.symptoms.length < 10) {
     errors.symptoms = 'Please provide more detail about symptoms (minimum 10 characters)';
   }
-
+  
   return { isValid: Object.keys(errors).length === 0, errors };
 };
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000'\;
 
 export default function HealthAssessmentForm() {
   const [loading, setLoading] = useState(false);
@@ -53,32 +53,46 @@ export default function HealthAssessmentForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     // Validate form
     const validation = validateForm(formData);
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
       return;
     }
-
+    
     setValidationErrors({});
     setLoading(true);
     setError('');
     setAssessmentResult(null);
 
     try {
-      // Prepare data with proper types
+      // Create clean data object with no duplicates
       const submitData = {
-        name: formData.name.trim(),
+        name: String(formData.name).trim(),
         age: parseInt(formData.age),
-        gender: formData.gender,
-        symptoms: formData.symptoms.trim(),
-        medical_history: formData.medical_history.trim() || '',
-        current_medications: formData.current_medications.trim() || ''
+        gender: String(formData.gender),
+        symptoms: String(formData.symptoms).trim(),
+        medical_history: String(formData.medical_history || '').trim(),
+        current_medications: String(formData.current_medications || '').trim()
       };
-
-      console.log('Submitting data:', submitData);
-
+      
+      // Validate data before sending
+      if (!submitData.name || submitData.name.length < 2) {
+        throw new Error('Name must be at least 2 characters');
+      }
+      if (!submitData.age || submitData.age < 1 || submitData.age > 120) {
+        throw new Error('Age must be between 1 and 120');
+      }
+      if (!submitData.gender) {
+        throw new Error('Gender must be selected');
+      }
+      if (!submitData.symptoms || submitData.symptoms.length < 10) {
+        throw new Error('Symptoms must be at least 10 characters');
+      }
+      
+      console.log('Submitting clean data:', submitData);
+      
       const response = await fetch(`${API_BASE_URL}/api/assess-health`, {
         method: 'POST',
         headers: {
@@ -88,22 +102,28 @@ export default function HealthAssessmentForm() {
       });
 
       console.log('Response status:', response.status);
-
+      console.log('Response headers:', response.headers);
+      
+      // Handle different response types
+      let result;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const textResponse = await response.text();
+        console.log('Non-JSON response:', textResponse);
+        throw new Error(`Server returned non-JSON response: ${response.status}`);
+      }
+      
       if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          // If we can't parse error JSON, use the status message
-        }
+        const errorMessage = result.error || result.message || `HTTP ${response.status}: ${response.statusText}`;
         throw new Error(errorMessage);
       }
 
-      const result = await response.json();
       console.log('Assessment result:', result);
       setAssessmentResult(result);
-
+      
     } catch (error) {
       console.error('Assessment error:', error);
       setError(error.message || 'Assessment failed. Please try again.');
@@ -117,7 +137,7 @@ export default function HealthAssessmentForm() {
       ...prev,
       [field]: value
     }));
-
+    
     // Clear validation error for this field
     if (validationErrors[field]) {
       setValidationErrors(prev => ({
@@ -187,12 +207,12 @@ export default function HealthAssessmentForm() {
             </div>
           </Overlay>
         )}
-
+        
         {!assessmentResult ? (
           <form onSubmit={handleSubmit}>
             <Stack spacing="md">
               <Title order={3} mb="md">Patient Information</Title>
-
+              
               <TextInput
                 icon={<IconUser size={16} />}
                 label="Full Name"
@@ -268,15 +288,14 @@ export default function HealthAssessmentForm() {
                 size="md"
               />
 
-              <Button
+              <Button 
                 type="submit"
                 loading={loading}
                 size="lg"
                 fullWidth
-                leftIcon={<IconBrain size={20} />}
                 disabled={loading}
               >
-                {loading ? 'Analyzing with AI...' : 'Get AI Health Assessment'}
+                {loading ? 'Analyzing with AI...' : '🧠 Get AI Health Assessment'}
               </Button>
             </Stack>
           </form>
@@ -285,12 +304,11 @@ export default function HealthAssessmentForm() {
           <Stack spacing="xl">
             <Group position="apart">
               <Title order={2} color="blue">📋 Health Assessment Report</Title>
-              <Button
+              <Button 
                 onClick={resetForm}
                 variant="light"
-                leftIcon={<IconRefresh size={16} />}
               >
-                New Assessment
+                🔄 New Assessment
               </Button>
             </Group>
 
@@ -304,7 +322,7 @@ export default function HealthAssessmentForm() {
                     Powered by {assessmentResult.backend} • Risk Score: {assessmentResult.ml_assessment?.risk_score}/1.0
                   </Text>
                 </div>
-                <Badge
+                <Badge 
                   color={getRiskColor(assessmentResult.ai_analysis?.urgency)}
                   size="xl"
                   variant="filled"
@@ -338,7 +356,7 @@ export default function HealthAssessmentForm() {
                       {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
                     </Text>
                   </div>
-
+                  
                   <div style={{ textAlign: 'center' }}>
                     <Text size="xs" weight={600} style={{ opacity: 0.8 }}>RISK FACTORS</Text>
                     <Text size="xl" weight={700}>
@@ -352,7 +370,7 @@ export default function HealthAssessmentForm() {
             {/* Medical Disclaimer */}
             <Alert icon={<IconShieldCheck size="1rem" />} color="blue" variant="light">
               <Text size="sm">
-                <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice.
+                <strong>Medical Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice. 
                 Please consult with healthcare professionals for medical concerns.
               </Text>
             </Alert>

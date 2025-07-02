@@ -12,66 +12,87 @@ except ImportError:
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        """Real AI health assessment with proper error handling"""
+        """AI health assessment with bulletproof error handling"""
+        # Always start with 200 OK and proper headers
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        
         try:
-            # CORS headers
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-            self.end_headers()
-            
             # Parse request safely
-            try:
-                content_length = int(self.headers.get('Content-Length', 0))
-                if content_length == 0:
-                    raise ValueError("Empty request body")
-                    
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON format: {str(e)}")
-            except Exception as e:
-                raise ValueError(f"Request parsing error: {str(e)}")
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                raise ValueError("Empty request body")
+                
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
             
-            # Validate and clean required fields
-            required_fields = {
-                'name': str,
-                'age': int,
-                'gender': str,
-                'symptoms': str,
-                'medical_history': str,
-                'current_medications': str
-            }
+            print(f"Received data: {data}")
+            
+            # Clean and validate data
+            required_fields = ['name', 'age', 'gender', 'symptoms']
+            optional_fields = ['medical_history', 'current_medications']
             
             cleaned_data = {}
-            for field, field_type in required_fields.items():
-                if field not in data:
-                    if field in ['medical_history', 'current_medications']:
-                        cleaned_data[field] = ''  # Optional fields
-                    else:
-                        raise ValueError(f"Missing required field: {field}")
-                else:
+            
+            # Process required fields
+            for field in required_fields:
+                if field not in data or not data[field]:
+                    error_response = {
+                        "error": f"Missing or empty required field: {field}",
+                        "status": "validation_error",
+                        "field": field
+                    }
+                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
+                    return
+                
+                if field == 'age':
                     try:
-                        if field_type == int:
-                            cleaned_data[field] = int(data[field])
-                        else:
-                            cleaned_data[field] = str(data[field]).strip()
+                        age_val = int(data[field])
+                        if age_val < 1 or age_val > 120:
+                            raise ValueError("Age out of range")
+                        cleaned_data[field] = age_val
                     except (ValueError, TypeError):
-                        raise ValueError(f"Invalid format for field '{field}': expected {field_type.__name__}")
+                        error_response = {
+                            "error": "Age must be a number between 1 and 120",
+                            "status": "validation_error",
+                            "field": field
+                        }
+                        self.wfile.write(json.dumps(error_response).encode('utf-8'))
+                        return
+                else:
+                    cleaned_data[field] = str(data[field]).strip()
+            
+            # Process optional fields
+            for field in optional_fields:
+                cleaned_data[field] = str(data.get(field, '')).strip()
             
             # Additional validation
-            if cleaned_data['age'] < 1 or cleaned_data['age'] > 120:
-                raise ValueError("Age must be between 1 and 120 years")
-            
             if len(cleaned_data['symptoms']) < 10:
-                raise ValueError("Symptoms description must be at least 10 characters")
+                error_response = {
+                    "error": "Symptoms description must be at least 10 characters",
+                    "status": "validation_error",
+                    "field": "symptoms"
+                }
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
+                return
             
-            if cleaned_data['gender'] not in ['male', 'female', 'other', 'prefer-not-to-say']:
-                raise ValueError("Invalid gender value")
+            valid_genders = ['male', 'female', 'other', 'prefer-not-to-say']
+            if cleaned_data['gender'] not in valid_genders:
+                error_response = {
+                    "error": f"Gender must be one of: {', '.join(valid_genders)}",
+                    "status": "validation_error",
+                    "field": "gender"
+                }
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
+                return
             
-            # Process with validated data
+            print(f"Cleaned data: {cleaned_data}")
+            
+            # Process assessment
             age = cleaned_data['age']
             symptoms = cleaned_data['symptoms'].lower()
             medical_history = cleaned_data['medical_history'].lower()
@@ -100,7 +121,7 @@ class handler(BaseHTTPRequestHandler):
             
             critical_symptoms = [
                 'fever', 'high fever', 'vomiting', 'severe nausea', 'dizziness',
-                'confusion', 'severe fatigue', 'persistent pain'
+                'confusion', 'severe fatigue', 'persistent pain', 'chills', 'dehydration'
             ]
             
             emergency_detected = False
@@ -154,16 +175,16 @@ class handler(BaseHTTPRequestHandler):
                         try:
                             model = genai.GenerativeModel(model_name)
                             
-                            prompt = f"""Provide a medical assessment for a {age}-year-old {cleaned_data['gender']} with these symptoms: {cleaned_data['symptoms']}
+                            prompt = f"""Medical assessment for {age}-year-old {cleaned_data['gender']} with symptoms: {cleaned_data['symptoms']}
 
-Medical History: {cleaned_data['medical_history'] or 'None'}
-Medications: {cleaned_data['current_medications'] or 'None'}
+Medical History: {cleaned_data['medical_history'] or 'None reported'}
+Current Medications: {cleaned_data['current_medications'] or 'None reported'}
 
-Provide exactly this format:
+Provide EXACTLY this format:
 
-REASONING: [2-3 sentences of clinical assessment]
+REASONING: [2-3 sentences explaining the clinical assessment for these symptoms]
 
-RECOMMENDATION: [First specific recommendation]
+RECOMMENDATION: [First specific medical recommendation]
 RECOMMENDATION: [Second specific recommendation]  
 RECOMMENDATION: [Third specific recommendation]
 RECOMMENDATION: [Fourth specific recommendation]
@@ -174,6 +195,7 @@ RECOMMENDATION: [Sixth specific recommendation]"""
                             
                             if response and response.text:
                                 ai_text = response.text
+                                print(f"Gemini response: {ai_text[:200]}...")
                                 
                                 # Parse structured response
                                 lines = [line.strip() for line in ai_text.split('\n') if line.strip()]
@@ -193,30 +215,32 @@ RECOMMENDATION: [Sixth specific recommendation]"""
                                         "reasoning": reasoning,
                                         "recommendations": recommendations[:6],
                                         "urgency": urgency,
-                                        "explanation": f"Analysis by {model_name} with clinical reasoning and evidence-based recommendations.",
+                                        "explanation": f"Analysis by {model_name} with clinical reasoning.",
                                         "ai_confidence": "high",
                                         "model_used": f"Google {model_name}"
                                     }
                                     gemini_success = True
+                                    print(f"Gemini analysis successful with {model_name}")
                                     break
                         except Exception as e:
                             print(f"Model {model_name} failed: {str(e)}")
                             continue
                             
                 except Exception as e:
-                    print(f"Gemini setup error: {str(e)}")
+                    print(f"Gemini error: {str(e)}")
             
             # Fallback analysis
             if not gemini_success:
+                print("Using fallback analysis")
                 ai_analysis = {
-                    "reasoning": f"Clinical assessment for {age}-year-old {cleaned_data['gender']} presenting with {cleaned_data['symptoms'][:100]}. Risk stratification indicates {urgency} priority based on symptom presentation and demographic factors.",
+                    "reasoning": f"Clinical assessment for {age}-year-old {cleaned_data['gender']} with {cleaned_data['symptoms'][:80]}. Symptoms including {', '.join([s for s in critical_symptoms if s in symptoms][:3])} indicate {urgency} priority medical attention based on symptom presentation and demographic factors.",
                     "recommendations": [
                         f"Seek {urgency} priority medical evaluation for comprehensive assessment",
-                        "Document symptom progression and severity changes carefully",
-                        "Maintain adequate hydration and rest in appropriate position",
-                        "Monitor vital signs and consciousness level if possible",
-                        "Contact healthcare provider or emergency services as indicated",
-                        "Do not delay seeking care if symptoms significantly worsen"
+                        "Monitor symptom progression and document changes carefully",
+                        "Maintain adequate hydration and rest in comfortable position",
+                        "Contact healthcare provider or emergency services as appropriate",
+                        "Do not delay seeking care if symptoms significantly worsen",
+                        "Keep emergency contacts readily available"
                     ],
                     "urgency": urgency,
                     "explanation": "Professional medical assessment using evidence-based algorithms.",
@@ -246,31 +270,14 @@ RECOMMENDATION: [Sixth specific recommendation]"""
                 "gemini_success": gemini_success
             }
             
+            print(f"Sending successful response")
             self.wfile.write(json.dumps(response_data).encode('utf-8'))
             
-        except ValueError as e:
-            # Validation errors - return 400
-            self.send_response(400)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            error_response = {
-                "error": str(e),
-                "status": "validation_error",
-                "backend": "Vercel Python Serverless"
-            }
-            self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            
         except Exception as e:
-            # Server errors - return 500
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
+            print(f"Unexpected error: {str(e)}")
+            # Always return a valid JSON response
             error_response = {
-                "error": f"Server error: {str(e)}",
+                "error": f"Assessment failed: {str(e)}",
                 "status": "server_error",
                 "backend": "Vercel Python Serverless"
             }
