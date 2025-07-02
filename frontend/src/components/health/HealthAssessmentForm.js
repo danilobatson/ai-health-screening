@@ -1,301 +1,231 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Container,
-  Card,
-  Title,
-  Text,
-  TextInput,
-  NumberInput,
-  Select,
-  MultiSelect,
-  Button,
-  Group,
-  Stack,
-  Chip,
-  Loader,
-  Alert,
-  Badge,
-  Grid,
-} from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
-import { IconStethoscope, IconAlertTriangle, IconCheck, IconShieldCheck } from '@tabler/icons-react';
-import { healthAssessmentSchema, validateSymptomName, VALID_MEDICAL_CONDITIONS } from '@/lib/validation';
+import { TextInput, Select, Textarea, Button, Card, Title, Text, Alert, LoadingOverlay } from '@mantine/core';
+import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
 
-const SEVERITY_OPTIONS = [
-  { value: 'mild', label: 'Mild' },
-  { value: 'moderate', label: 'Moderate' },
-  { value: 'severe', label: 'Severe' },
-];
+// API configuration - works for both dev and production
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '' // Use relative URLs in production (same domain)
+  : 'http://localhost:8000'\; // Use localhost in development
 
-const COMMON_SYMPTOMS = [
-  'chest pain', 'shortness of breath', 'dizziness', 'headache',
-  'nausea', 'fatigue', 'fever', 'cough', 'abdominal pain',
-  'back pain', 'joint pain', 'muscle pain'
-];
-
-export default function HealthAssessmentForm({ onAssessmentComplete }) {
+export default function HealthAssessmentForm() {
   const [loading, setLoading] = useState(false);
-  const [currentSymptoms, setCurrentSymptoms] = useState([]);
+  const [assessmentResult, setAssessmentResult] = useState(null);
+  const [error, setError] = useState('');
 
-  const form = useForm({
-    validate: zodResolver(healthAssessmentSchema),
-    initialValues: {
-      name: '',
-      age: '',
-      symptoms: [],
-      medicalHistory: [],
-    },
+  const [formData, setFormData] = useState({
+    symptoms: '',
+    age: '',
+    gender: '',
+    medical_history: '',
+    current_medications: ''
   });
 
-  const addSymptom = (symptomName) => {
-    // Validate symptom name for security
-    if (!validateSymptomName(symptomName)) {
-      notifications.show({
-        title: 'Invalid Symptom',
-        message: 'Please select from the provided symptom list',
-        color: 'red',
-        icon: <IconAlertTriangle size={16} />,
-      });
-      return;
-    }
-
-    if (!currentSymptoms.find(s => s.name === symptomName)) {
-      const newSymptom = {
-        name: symptomName,
-        severity: 'mild',
-        duration_days: 1
-      };
-      const updatedSymptoms = [...currentSymptoms, newSymptom];
-      setCurrentSymptoms(updatedSymptoms);
-      form.setFieldValue('symptoms', updatedSymptoms);
-    }
-  };
-
-  const updateSymptom = (index, field, value) => {
-    const updated = currentSymptoms.map((symptom, i) => 
-      i === index ? { ...symptom, [field]: value } : symptom
-    );
-    setCurrentSymptoms(updated);
-    form.setFieldValue('symptoms', updated);
-  };
-
-  const removeSymptom = (index) => {
-    const updated = currentSymptoms.filter((_, i) => i !== index);
-    setCurrentSymptoms(updated);
-    form.setFieldValue('symptoms', updated);
-  };
-
-  const submitAssessment = async (values) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    
+    setError('');
+    setAssessmentResult(null);
+
     try {
-      // Additional validation
-      if (values.age < 1 || values.age > 120) {
-        throw new Error('Invalid age provided');
-      }
-
-      // Sanitize medical history
-      const sanitizedHistory = values.medicalHistory.filter(condition => 
-        VALID_MEDICAL_CONDITIONS.includes(condition)
-      );
-
-      const response = await fetch('http://localhost:8000/api/assess-health', {
+      console.log('Making API call to:', `${API_BASE_URL}/api/assess-health`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/assess-health`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: values.name.trim(),
-          age: parseInt(values.age),
-          symptoms: currentSymptoms,
-          medical_history: sanitizedHistory,
-        }),
+        body: JSON.stringify(formData)
       });
 
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      
-      notifications.show({
-        title: 'Assessment Complete',
-        message: `AI analysis completed with ${Math.round(result.confidence_score * 100)}% confidence`,
-        color: 'green',
-        icon: <IconCheck size={16} />,
-      });
-
-      onAssessmentComplete(result);
+      console.log('Assessment result:', result);
+      setAssessmentResult(result);
       
     } catch (error) {
       console.error('Assessment error:', error);
-      notifications.show({
-        title: 'Assessment Error',
-        message: error.message || 'Please ensure all fields are valid and try again',
-        color: 'red',
-        icon: <IconAlertTriangle size={16} />,
-      });
+      setError(error.message || 'Assessment failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   return (
-    <Container size="md" py="xl">
-      <Card shadow="lg" padding="xl" radius="md" withBorder>
-        <Group justify="space-between" mb="lg">
-          <Group>
-            <IconStethoscope size={32} color="#2563eb" />
-            <Title order={2}>Health Assessment</Title>
-          </Group>
-          <Group>
-            <Badge color="blue" size="lg">AI Powered</Badge>
-            <Badge color="green" size="sm" leftSection={<IconShieldCheck size={12} />}>
-              Validated
-            </Badge>
-          </Group>
-        </Group>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px' }}>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Title order={2} mb="md">🏥 AI Health Assessment</Title>
+        
+        <form onSubmit={handleSubmit}>
+          <TextInput
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={formData.name || ''}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            required
+            mb="md"
+          />
 
-        <form onSubmit={form.onSubmit(submitAssessment)}>
-          <Stack gap="md">
-            {/* Patient Information */}
-            <Text fw={500} size="lg" mb="xs">Patient Information</Text>
-            
-            <Grid>
-              <Grid.Col span={{ base: 12, md: 8 }}>
-                <TextInput
-                  label="Full Name"
-                  placeholder="Enter patient name"
-                  required
-                  {...form.getInputProps('name')}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 4 }}>
-                <NumberInput
-                  label="Age"
-                  placeholder="Age"
-                  min={1}
-                  max={120}
-                  required
-                  {...form.getInputProps('age')}
-                />
-              </Grid.Col>
-            </Grid>
+          <TextInput
+            label="Age"
+            type="number"
+            placeholder="Enter your age"
+            value={formData.age}
+            onChange={(e) => handleInputChange('age', e.target.value)}
+            required
+            mb="md"
+          />
 
-            {/* Medical History */}
-            <MultiSelect
-              label="Medical History"
-              placeholder="Select existing conditions"
-              data={VALID_MEDICAL_CONDITIONS}
-              searchable
-              maxValues={10}
-              {...form.getInputProps('medicalHistory')}
-            />
+          <Select
+            label="Gender"
+            placeholder="Select gender"
+            value={formData.gender}
+            onChange={(value) => handleInputChange('gender', value)}
+            data={[
+              { value: 'male', label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'other', label: 'Other' },
+              { value: 'prefer-not-to-say', label: 'Prefer not to say' }
+            ]}
+            required
+            mb="md"
+          />
 
-            {/* Symptoms Section */}
-            <Text fw={500} size="lg" mt="md" mb="xs">Current Symptoms</Text>
-            
-            <Text size="sm" c="dimmed" mb="xs">
-              Select symptoms from the validated list:
-            </Text>
+          <Textarea
+            label="Current Symptoms"
+            placeholder="Describe your current symptoms in detail..."
+            value={formData.symptoms}
+            onChange={(e) => handleInputChange('symptoms', e.target.value)}
+            required
+            minRows={3}
+            mb="md"
+          />
 
-            <Chip.Group>
-              <Group>
-                {COMMON_SYMPTOMS.map((symptom) => (
-                  <Chip
-                    key={symptom}
-                    variant="outline"
-                    onClick={() => addSymptom(symptom)}
-                    disabled={currentSymptoms.some(s => s.name === symptom)}
-                  >
-                    {symptom}
-                  </Chip>
-                ))}
-              </Group>
-            </Chip.Group>
+          <Textarea
+            label="Medical History"
+            placeholder="Any relevant medical history, conditions, or allergies..."
+            value={formData.medical_history}
+            onChange={(e) => handleInputChange('medical_history', e.target.value)}
+            minRows={2}
+            mb="md"
+          />
 
-            {/* Current Symptoms List */}
-            {currentSymptoms.map((symptom, index) => (
-              <Card key={index} withBorder p="md" bg="gray.0">
-                <Grid align="end">
-                  <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Text fw={500}>{symptom.name}</Text>
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 6, md: 3 }}>
-                    <Select
-                      label="Severity"
-                      data={SEVERITY_OPTIONS}
-                      value={symptom.severity}
-                      onChange={(value) => updateSymptom(index, 'severity', value)}
-                    />
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 6, md: 3 }}>
-                    <NumberInput
-                      label="Duration (days)"
-                      min={1}
-                      max={365}
-                      value={symptom.duration_days}
-                      onChange={(value) => updateSymptom(index, 'duration_days', value)}
-                    />
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, md: 2 }}>
-                    <Button
-                      variant="light"
-                      color="red"
-                      size="sm"
-                      onClick={() => removeSymptom(index)}
-                    >
-                      Remove
-                    </Button>
-                  </Grid.Col>
-                </Grid>
-              </Card>
-            ))}
+          <Textarea
+            label="Current Medications"
+            placeholder="List any medications you're currently taking..."
+            value={formData.current_medications}
+            onChange={(e) => handleInputChange('current_medications', e.target.value)}
+            minRows={2}
+            mb="md"
+          />
 
-            {/* Form Validation Errors */}
-            {form.errors.symptoms && (
-              <Alert color="red" variant="light">
-                {form.errors.symptoms}
-              </Alert>
-            )}
-
-            {form.errors.name && (
-              <Alert color="red" variant="light">
-                {form.errors.name}
-              </Alert>
-            )}
-
-            {form.errors.age && (
-              <Alert color="red" variant="light">
-                {form.errors.age}
-              </Alert>
-            )}
-
-            {/* Submit Button */}
-            <Group justify="center" mt="xl">
-              <Button
-                type="submit"
-                size="lg"
-                loading={loading}
-                leftSection={<IconStethoscope size={20} />}
-                disabled={currentSymptoms.length === 0}
-              >
-                {loading ? 'Analyzing with AI...' : 'Get AI Health Assessment'}
-              </Button>
-            </Group>
-
-            {/* Security Notice */}
-            <Text size="xs" ta="center" c="dimmed">
-              <IconShieldCheck size={12} style={{ display: 'inline', marginRight: '4px' }} />
-              All inputs are validated and sanitized for security
-            </Text>
-          </Stack>
+          <Button 
+            type="submit" 
+            fullWidth 
+            loading={loading}
+            disabled={!formData.symptoms || !formData.age || !formData.gender}
+          >
+            {loading ? 'Analyzing...' : '🔍 Get AI Health Assessment'}
+          </Button>
         </form>
+
+        {error && (
+          <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red" mt="md">
+            {error}
+          </Alert>
+        )}
+
+        {assessmentResult && (
+          <Card mt="xl" p="md" withBorder>
+            <Title order={3} mb="md">📋 Assessment Results</Title>
+            
+            {/* AI Analysis */}
+            <Card mb="md" p="sm" bg="blue.0">
+              <Title order={4} size="h5" mb="xs">🤖 AI Analysis</Title>
+              <Text size="sm" mb="xs">
+                <strong>Reasoning:</strong> {assessmentResult.ai_analysis?.reasoning}
+              </Text>
+              <Text size="sm" mb="xs">
+                <strong>Urgency Level:</strong> 
+                <span style={{ 
+                  color: assessmentResult.ai_analysis?.urgency === 'high' ? 'red' : 
+                        assessmentResult.ai_analysis?.urgency === 'moderate' ? 'orange' : 'green',
+                  fontWeight: 'bold',
+                  marginLeft: '8px'
+                }}>
+                  {assessmentResult.ai_analysis?.urgency?.toUpperCase()}
+                </span>
+              </Text>
+              <Text size="sm">
+                <strong>Recommendations:</strong>
+              </Text>
+              <ul style={{ fontSize: '14px', marginTop: '4px' }}>
+                {assessmentResult.ai_analysis?.recommendations?.map((rec, index) => (
+                  <li key={index}>{rec}</li>
+                ))}
+              </ul>
+            </Card>
+
+            {/* ML Assessment */}
+            <Card mb="md" p="sm" bg="green.0">
+              <Title order={4} size="h5" mb="xs">📊 ML Risk Assessment</Title>
+              <Text size="sm" mb="xs">
+                <strong>Risk Score:</strong> {assessmentResult.ml_assessment?.risk_score}/1.0
+              </Text>
+              <Text size="sm" mb="xs">
+                <strong>Confidence:</strong> {Math.round(assessmentResult.ml_assessment?.confidence * 100)}%
+              </Text>
+              <Text size="sm" mb="xs">
+                <strong>Risk Level:</strong> 
+                <span style={{ 
+                  color: assessmentResult.ml_assessment?.risk_level === 'high' ? 'red' : 
+                        assessmentResult.ml_assessment?.risk_level === 'moderate' ? 'orange' : 'green',
+                  fontWeight: 'bold',
+                  marginLeft: '8px'
+                }}>
+                  {assessmentResult.ml_assessment?.risk_level?.toUpperCase()}
+                </span>
+              </Text>
+              <Text size="sm">
+                <strong>Assessment Factors:</strong>
+              </Text>
+              <ul style={{ fontSize: '14px', marginTop: '4px' }}>
+                {assessmentResult.ml_assessment?.factors?.map((factor, index) => (
+                  <li key={index}>{factor}</li>
+                ))}
+              </ul>
+            </Card>
+
+            <Alert icon={<IconCheck size="1rem" />} color="blue" variant="light">
+              <Text size="sm">
+                <strong>Disclaimer:</strong> This AI assessment is for informational purposes only and does not replace professional medical advice. 
+                Please consult with healthcare professionals for medical concerns.
+              </Text>
+            </Alert>
+
+            {/* Backend Info */}
+            {assessmentResult.backend && (
+              <Text size="xs" color="dimmed" mt="sm">
+                Powered by: {assessmentResult.backend}
+              </Text>
+            )}
+          </Card>
+        )}
       </Card>
-    </Container>
+    </div>
   );
 }
