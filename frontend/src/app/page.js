@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { 
   Container, 
   Title, 
@@ -17,8 +18,52 @@ import {
   IconReportMedical,
   IconBrain 
 } from '@tabler/icons-react';
+import HealthAssessmentForm from '@/components/health/HealthAssessmentForm';
+import AssessmentResults from '@/components/health/AssessmentResults';
 
 export default function HomePage() {
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'assessment', 'results'
+  const [assessmentResults, setAssessmentResults] = useState(null);
+
+  const handleStartAssessment = () => {
+    setCurrentView('assessment');
+  };
+
+  const handleAssessmentComplete = (results) => {
+    setAssessmentResults(results);
+    setCurrentView('results');
+  };
+
+  const handleNewAssessment = () => {
+    setAssessmentResults(null);
+    setCurrentView('assessment');
+  };
+
+  const handleBackHome = () => {
+    setCurrentView('home');
+    setAssessmentResults(null);
+  };
+
+  // Show results view
+  if (currentView === 'results') {
+    return (
+      <AssessmentResults 
+        results={assessmentResults}
+        onNewAssessment={handleNewAssessment}
+      />
+    );
+  }
+
+  // Show assessment form
+  if (currentView === 'assessment') {
+    return (
+      <HealthAssessmentForm 
+        onAssessmentComplete={handleAssessmentComplete}
+      />
+    );
+  }
+
+  // Show home page
   return (
     <Container size="lg" py="xl">
       {/* Header Section */}
@@ -88,6 +133,7 @@ export default function HomePage() {
           size="xl" 
           color="blue" 
           leftSection={<IconHeartHandshake size={20} />}
+          onClick={handleStartAssessment}
         >
           Start Health Assessment
         </Button>
