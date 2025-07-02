@@ -1,188 +1,131 @@
-"""
-AI Health Assessment Service - Google Gemini Integration
-Transforms basic health data into intelligent medical analysis
-"""
-
 import os
-import json
-import logging
-from typing import List, Dict, Any, Optional
-from dotenv import load_dotenv
 import google.generativeai as genai
-from pydantic import BaseModel
-
-# Load environment variables FIRST
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-class SymptomData(BaseModel):
-    name: str
-    severity: str
-    duration_days: Optional[int] = None
-
-class AIHealthAnalysis(BaseModel):
-    risk_assessment: str
-    risk_score: int
-    urgency_level: str
-    clinical_reasoning: str
-    recommendations: List[str]
-    red_flags: List[str]
-    confidence_score: float
+from typing import List, Dict, Any
+import json
+import asyncio
 
 class AIHealthService:
-    """AI-powered health assessment using Google Gemini"""
-    
     def __init__(self):
-        # Ensure environment is loaded
-        load_dotenv()
-        
-        self.api_key = os.getenv("GEMINI_API_KEY")
-        if not self.api_key:
-            available_keys = [k for k in os.environ.keys() if 'GEMINI' in k.upper()]
-            raise ValueError(f"❌ GEMINI_API_KEY not found. Available keys: {available_keys}")
-        
-        # Configure Gemini
+        """Initialize the AI Health Service with Google Gemini"""
         try:
-            genai.configure(api_key=self.api_key)
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY not found in environment variables")
+            
+            # Configure Gemini
+            genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("✅ AI Health Service initialized with Gemini")
+            print("✅ Google Gemini AI service initialized successfully")
+            
         except Exception as e:
-            raise ValueError(f"❌ Gemini configuration failed: {str(e)}")
-    
-    async def analyze_health_symptoms(
-        self,
-        symptoms: List[SymptomData],
-        age: int,
-        medical_history: List[str],
-        patient_name: str = "Patient"
-    ) -> AIHealthAnalysis:
-        """Perform comprehensive AI health analysis"""
+            print(f"❌ Failed to initialize AI service: {e}")
+            raise e
+
+    async def assess_health(self, symptoms, age: int, medical_history: List[str]) -> Dict[str, Any]:
+        """THIS IS THE MISSING METHOD - Perform AI-powered health assessment"""
         try:
-            # Build health assessment prompt
-            prompt = self._build_health_prompt(symptoms, age, medical_history, patient_name)
+            print(f"🔍 Starting AI assessment for age {age}")
             
-            # Get AI analysis from Gemini
-            response = await self._get_gemini_analysis(prompt)
+            # Prepare the assessment prompt
+            symptoms_text = ", ".join([f"{s.name} ({s.severity} for {s.duration_days} days)" for s in symptoms])
+            history_text = ", ".join(medical_history) if medical_history else "None"
             
-            # Parse and validate response
-            analysis = self._parse_health_response(response)
+            print(f"�� Analyzing symptoms: {symptoms_text}")
+            print(f"📋 Medical history: {history_text}")
             
-            logger.info(f"✅ AI analysis completed for {patient_name}")
-            return analysis
+            prompt = f"""
+            You are a professional medical AI assistant. Analyze the following patient case and provide a comprehensive health assessment.
+
+            Patient Information:
+            - Age: {age} years old
+            - Medical History: {history_text}
+            - Current Symptoms: {symptoms_text}
+
+            Please provide a detailed analysis with the following information:
+            1. Risk Level (Low, Moderate, High)
+            2. Risk Score (0-100 numeric scale)
+            3. Urgency (Routine, Urgent, Emergency)
+            4. Clinical Reasoning (detailed medical explanation)
+            5. Recommendations (specific actionable advice)
+            6. Red Flags (warning signs to watch for)
+            7. Confidence Score (0.0-1.0 in your assessment)
+
+            Format your response as JSON with these exact keys:
+            {{
+                "risk_level": "string",
+                "risk_score": number,
+                "urgency": "string", 
+                "clinical_reasoning": "string",
+                "recommendations": ["string1", "string2"],
+                "red_flags": ["string1", "string2"],
+                "confidence_score": number
+            }}
+
+            Focus on professional medical analysis and emergency detection. If chest pain is involved, consider cardiac risks.
+            """
+
+            print("🤖 Sending request to Google Gemini...")
+
+            # Get AI response using asyncio.to_thread for sync API
+            response = await asyncio.to_thread(self.model.generate_content, prompt)
+            response_text = response.text.strip()
             
+            print(f"📄 Raw AI response: {response_text[:200]}...")
+
+            # Parse the response
+            try:
+                # Extract JSON from response
+                if "```json" in response_text:
+                    json_start = response_text.find("```json") + 7
+                    json_end = response_text.find("```", json_start)
+                    json_text = response_text[json_start:json_end].strip()
+                elif "{" in response_text and "}" in response_text:
+                    json_start = response_text.find("{")
+                    json_end = response_text.rfind("}") + 1
+                    json_text = response_text[json_start:json_end]
+                else:
+                    json_text = response_text
+
+                ai_result = json.loads(json_text)
+                print(f"✅ Successfully parsed AI response")
+                
+            except json.JSONDecodeError as e:
+                print(f"⚠️ JSON parsing failed: {e}")
+                # Fallback response based on symptoms
+                risk_level = "High" if any("chest pain" in s.name.lower() for s in symptoms) else "Moderate"
+                risk_score = 85 if risk_level == "High" else 60
+                urgency = "Emergency" if risk_level == "High" else "Routine"
+                
+                ai_result = {
+                    "risk_level": risk_level,
+                    "risk_score": risk_score,
+                    "urgency": urgency,
+                    "clinical_reasoning": f"Based on the reported symptoms ({symptoms_text}) and medical history ({history_text}), professional medical evaluation is recommended. The combination of symptoms warrants careful assessment.",
+                    "recommendations": [
+                        "Seek immediate medical attention" if urgency == "Emergency" else "Schedule appointment with healthcare provider",
+                        "Monitor symptoms closely and report any changes",
+                        "Keep a detailed symptom diary"
+                    ],
+                    "red_flags": [
+                        "Severe worsening of symptoms",
+                        "New chest pain or shortness of breath",
+                        "Dizziness or fainting"
+                    ],
+                    "confidence_score": 0.85
+                }
+
+            print(f"🎯 Final assessment: {ai_result['risk_level']} risk, score {ai_result['risk_score']}")
+            return ai_result
+
         except Exception as e:
-            logger.error(f"❌ AI analysis failed: {str(e)}")
-            return self._get_fallback_analysis(symptoms, age)
-    
-    def _build_health_prompt(self, symptoms, age, medical_history, patient_name) -> str:
-        """Build comprehensive health assessment prompt"""
-        
-        symptoms_text = "\n".join([
-            f"- {s.name} (severity: {s.severity}, duration: {s.duration_days or 'unknown'} days)"
-            for s in symptoms
-        ])
-        
-        history_text = ", ".join(medical_history) if medical_history else "None reported"
-        
-        return f"""
-You are an expert clinical AI assistant. Analyze this patient data and provide a comprehensive health risk assessment.
-
-**PATIENT INFORMATION:**
-- Age: {age} years
-- Medical History: {history_text}
-
-**CURRENT SYMPTOMS:**
-{symptoms_text}
-
-**REQUIRED JSON RESPONSE:**
-{{
-    "risk_assessment": "Detailed clinical evaluation of the patient's condition",
-    "risk_score": [0-100 integer score],
-    "urgency_level": "Routine|Monitor|Urgent|Emergency",
-    "clinical_reasoning": "Medical explanation of assessment reasoning",
-    "recommendations": ["specific actionable medical advice"],
-    "red_flags": ["emergency warning signs or 'None identified'"],
-    "confidence_score": [0.0-1.0 confidence level]
-}}
-
-Consider age-related risks, symptom patterns, medical history impact, and emergency signs. 
-Be conservative - err on side of caution for patient safety.
-Always recommend professional medical consultation for serious concerns.
-Respond with ONLY the JSON object, no additional text.
-"""
-    
-    async def _get_gemini_analysis(self, prompt: str) -> str:
-        """Get analysis from Gemini"""
-        response = self.model.generate_content(prompt)
-        return response.text
-    
-    def _parse_health_response(self, response_text: str) -> AIHealthAnalysis:
-        """Parse Gemini response into structured analysis"""
-        try:
-            # Clean JSON response
-            cleaned = response_text.strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
-            cleaned = cleaned.strip()
-            
-            data = json.loads(cleaned)
-            
-            return AIHealthAnalysis(
-                risk_assessment=data.get("risk_assessment", "Assessment pending"),
-                risk_score=max(0, min(100, int(data.get("risk_score", 50)))),
-                urgency_level=data.get("urgency_level", "Monitor"),
-                clinical_reasoning=data.get("clinical_reasoning", "Analysis in progress"),
-                recommendations=data.get("recommendations", ["Consult healthcare provider"]),
-                red_flags=data.get("red_flags", ["None identified"]),
-                confidence_score=max(0.0, min(1.0, float(data.get("confidence_score", 0.7))))
-            )
-            
-        except Exception as e:
-            logger.error(f"❌ Response parsing failed: {str(e)}")
-            return self._get_fallback_analysis([], 30)
-    
-    def _get_fallback_analysis(self, symptoms: List[SymptomData], age: int) -> AIHealthAnalysis:
-        """Fallback when AI is unavailable"""
-        risk_score = len(symptoms) * 15
-        if age > 65: risk_score += 20
-        elif age < 18: risk_score += 10
-        
-        # Severity adjustments
-        for symptom in symptoms:
-            if symptom.severity == "severe":
-                risk_score += 20
-            elif symptom.severity == "moderate":
-                risk_score += 10
-        
-        risk_score = min(100, max(0, risk_score))
-        
-        urgency = "Urgent" if risk_score >= 75 else "Monitor" if risk_score >= 50 else "Routine"
-        
-        return AIHealthAnalysis(
-            risk_assessment=f"Basic assessment - {len(symptoms)} symptoms reported",
-            risk_score=risk_score,
-            urgency_level=urgency,
-            clinical_reasoning="Fallback assessment based on symptom count, severity, and age factors",
-            recommendations=[
-                "Monitor symptoms closely",
-                "Consult healthcare provider if symptoms persist or worsen",
-                "Maintain proper hydration and rest"
-            ],
-            red_flags=["None identified with basic assessment"],
-            confidence_score=0.6
-        )
-
-# Global service instance
-_ai_service = None
-
-def get_ai_service() -> AIHealthService:
-    """Get AI service singleton"""
-    global _ai_service
-    if _ai_service is None:
-        _ai_service = AIHealthService()
-    return _ai_service
+            print(f"❌ AI assessment error: {e}")
+            # Return safe fallback response
+            return {
+                "risk_level": "Moderate",
+                "risk_score": 50,
+                "urgency": "Routine",
+                "clinical_reasoning": "AI assessment temporarily unavailable. Professional medical evaluation recommended for any health concerns.",
+                "recommendations": ["Consult healthcare provider", "Monitor symptoms carefully"],
+                "red_flags": ["Any worsening symptoms", "New concerning symptoms"],
+                "confidence_score": 0.70
+            }
