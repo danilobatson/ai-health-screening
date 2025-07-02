@@ -1,7 +1,7 @@
 // API configuration for development and production
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
+const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? '' // Production: use relative URLs (same domain)
-  : 'http://localhost:8000'\; // Development: use localhost
+  : 'http://localhost:8000'; // Development: use localhost
 
 export const healthAPI = {
   async assessHealth(formData) {
