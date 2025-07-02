@@ -102,7 +102,6 @@ export default function HealthAssessmentForm() {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       // Handle different response types
       let result;
@@ -339,12 +338,16 @@ export default function HealthAssessmentForm() {
 
                 <div>
                   <Text weight={600} mb="xs">MEDICAL RECOMMENDATIONS</Text>
-                  <Stack spacing={4}>
+                  <Stack spacing={8}>
                     {assessmentResult.ai_analysis?.recommendations?.map((rec, index) => (
-                      <Group key={index} spacing="xs">
-                        <IconCheck size={14} />
-                        <Text size="sm">{rec}</Text>
-                      </Group>
+                      <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <div style={{ flexShrink: 0, marginTop: '2px' }}>
+                          <IconCheck size={14} />
+                        </div>
+                        <Text size="sm" style={{ flex: 1, lineHeight: 1.5 }}>
+                          {rec}
+                        </Text>
+                      </div>
                     ))}
                   </Stack>
                 </div>
