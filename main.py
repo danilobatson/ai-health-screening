@@ -80,6 +80,14 @@ async def assess_health(request: HealthAssessmentRequest):
         print(f"📋 Symptoms: {request.symptoms}")
         print(f"👤 Gender: {request.gender}")
         
+        # Validate age
+        if request.age < 0 or request.age > 120:
+            raise HTTPException(status_code=422, detail="Age must be between 0 and 120")
+        
+        # Validate required fields
+        if not request.symptoms or not request.symptoms.strip():
+            raise HTTPException(status_code=422, detail="Symptoms are required")
+        
         if ai_service is None:
             raise HTTPException(status_code=500, detail="AI service not available")
         
@@ -108,7 +116,7 @@ async def assess_health(request: HealthAssessmentRequest):
             "ml_assessment": {
                 "risk_score": ai_response.get("risk_score", 50) / 100.0,  # Convert to 0-1 scale
                 "confidence": ai_response.get("confidence_score", 0.8),
-                "risk_level": ai_response.get("risk_level", "moderate"),
+                "risk_level": ai_response.get("risk_level", "moderate").lower(),  # Ensure lowercase
                 "factors": ["Age assessment", "Symptom analysis", "ML pattern matching"]
             },
             "status": "success",
@@ -119,6 +127,9 @@ async def assess_health(request: HealthAssessmentRequest):
         
         return HealthAssessmentResponse(**formatted_response)
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         print(f"❌ Assessment error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Assessment failed: {str(e)}")

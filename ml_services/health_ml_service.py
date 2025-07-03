@@ -50,44 +50,44 @@ class HealthMLService:
                 'medical_condition': condition,
                 'duration_days': duration,
                 'risk_score': risk_score,
-                'risk_level': 'High' if risk_score >= 70 else 'Moderate' if risk_score >= 40 else 'Low'
+                'risk_level': 'High' if risk_score >= 0.7 else 'Moderate' if risk_score >= 0.4 else 'Low'
             })
         
         self.training_data = pd.DataFrame(data)
         print(f"✅ Generated {len(self.training_data)} synthetic training samples")
         return self.training_data
     
-    def _calculate_synthetic_risk(self, age: int, symptom: str, severity: str, condition: str, duration: int) -> int:
-        """Calculate realistic risk scores for synthetic data"""
-        base_risk = 20
+    def _calculate_synthetic_risk(self, age: int, symptom: str, severity: str, condition: str, duration: int) -> float:
+        """Calculate realistic risk scores for synthetic data (0-1 scale)"""
+        base_risk = 0.2  # Start with 20% base risk (0.2 on 0-1 scale)
         
         # Age factor
-        if age < 5: base_risk += 25  # Pediatric cases
-        elif age > 65: base_risk += 20  # Elderly cases
-        elif age > 50: base_risk += 10
+        if age < 5: base_risk += 0.25  # Pediatric cases
+        elif age > 65: base_risk += 0.20  # Elderly cases
+        elif age > 50: base_risk += 0.10
         
         # Symptom factor
         high_risk_symptoms = ['chest pain', 'shortness of breath', 'dizziness']
         if symptom in high_risk_symptoms:
-            base_risk += 30
+            base_risk += 0.30
         
         # Severity factor
         severity_multiplier = {'mild': 1.0, 'moderate': 1.3, 'severe': 1.8}
-        base_risk = int(base_risk * severity_multiplier[severity])
+        base_risk = base_risk * severity_multiplier[severity]
         
         # Medical condition factor
         if condition in ['heart disease', 'diabetes']:
-            base_risk += 20
+            base_risk += 0.20
         elif condition == 'hypertension':
-            base_risk += 15
+            base_risk += 0.15
         
         # Duration factor
         if duration > 7:
-            base_risk += 10
+            base_risk += 0.10
         elif duration > 14:
-            base_risk += 15
+            base_risk += 0.15
         
-        return min(95, max(5, base_risk))  # Cap between 5-95
+        return min(0.95, max(0.05, base_risk))  # Cap between 0.05-0.95
     
     def _train_models(self):
         """Train ML models on synthetic data"""
@@ -103,14 +103,14 @@ class HealthMLService:
             df['age_group_encoded'] = LabelEncoder().fit_transform(df['age_group'])
             
             # Select features for training
-            features = ['age', 'severity_encoded', 'condition_encoded', 'duration_days', 'age_group_encoded']
-            X = df[features]
+            self.feature_names = ['age', 'severity_encoded', 'condition_encoded', 'duration_days', 'age_group_encoded']
+            X = df[self.feature_names]
             y = df['risk_level']
             
             # Train-test split
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
             
-            # Train Random Forest model
+            # Train Random Forest model with consistent feature names
             self.risk_model = RandomForestClassifier(n_estimators=100, random_state=42)
             self.risk_model.fit(X_train, y_train)
             
@@ -167,13 +167,23 @@ class HealthMLService:
             else:
                 age_group_encoded = 4  # elderly
             
-            # Create feature vector
-            features = np.array([[age, severity_encoded, condition_encoded, 
-                                primary_symptom['duration_days'], age_group_encoded]])
+            # Create feature vector as DataFrame with proper feature names
+            feature_data = {
+                'age': [age],
+                'severity_encoded': [severity_encoded],
+                'condition_encoded': [condition_encoded],
+                'duration_days': [primary_symptom['duration_days']],
+                'age_group_encoded': [age_group_encoded]
+            }
+            features_df = pd.DataFrame(feature_data)
             
-            # Make prediction
-            risk_prediction = self.risk_model.predict(features)[0]
-            risk_probability = self.risk_model.predict_proba(features)[0]
+            # Make prediction using DataFrame with feature names
+            risk_prediction = self.risk_model.predict(features_df)[0]
+            risk_probability = self.risk_model.predict_proba(features_df)[0]
+            
+            # Calculate numeric risk score (0-1 scale)
+            max_prob = float(np.max(risk_probability))
+            risk_score = max_prob if risk_prediction == "High" else (max_prob * 0.6 if risk_prediction == "Moderate" else max_prob * 0.3)
             
             # Get feature importance
             feature_names = ['age', 'severity', 'medical_condition', 'duration', 'age_group']
@@ -182,6 +192,8 @@ class HealthMLService:
             return {
                 "ml_risk_level": risk_prediction,
                 "ml_confidence": float(np.max(risk_probability)),
+                "risk_score": risk_score,  # Add the missing risk_score field
+                "factors": [f"{name}: {importance:.2f}" for name, importance in feature_importance.items()],  # Add factors field
                 "risk_probabilities": {
                     "High": float(risk_probability[0]) if len(risk_probability) > 0 else 0,
                     "Low": float(risk_probability[1]) if len(risk_probability) > 1 else 0,
@@ -295,6 +307,14 @@ class HealthMLService:
         common_symptoms = ['chest pain', 'shortness of breath', 'dizziness', 'headache', 
                           'nausea', 'fatigue', 'fever', 'cough', 'abdominal pain']
         
+        # Check for specific symptoms in order of priority
+        if 'dizzy' in symptoms_text or 'dizziness' in symptoms_text:
+            return 'dizziness'
+        elif 'chest pain' in symptoms_text:
+            return 'chest pain'
+        elif 'headache' in symptoms_text or 'head' in symptoms_text:
+            return 'headache'
+        
         for symptom in common_symptoms:
             if symptom in symptoms_text:
                 return symptom
@@ -314,18 +334,20 @@ class HealthMLService:
         """Estimate duration in days from text description"""
         symptoms_text = symptoms_text.lower()
         
-        # Look for time indicators
-        if any(word in symptoms_text for word in ['weeks', 'week']):
+        # Look for specific time indicators - be more specific about patterns
+        if 'today' in symptoms_text or 'sudden onset today' in symptoms_text or 'this morning' in symptoms_text:
+            return 1
+        elif 'hours' in symptoms_text or 'hour' in symptoms_text:
+            return 1
+        elif 'weeks' in symptoms_text or 'week' in symptoms_text:
             return 7
-        elif any(word in symptoms_text for word in ['days', 'day']):
+        elif 'days' in symptoms_text or 'day' in symptoms_text:
             # Try to extract number
             import re
             numbers = re.findall(r'\d+', symptoms_text)
             if numbers:
                 return min(int(numbers[0]), 30)  # Cap at 30 days
             return 3
-        elif any(word in symptoms_text for word in ['hours', 'hour', 'today', 'sudden']):
-            return 1
         else:
             return 2  # Default to 2 days
 
