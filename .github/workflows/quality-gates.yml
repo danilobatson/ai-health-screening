@@ -20,5 +20,5 @@ jobs:
           VERCEL_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           echo "Triggering Vercel deployment..."
-          curl -X POST `${VERCEL_HOOK}`
+          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
           echo "Vercel deployment triggered!"
