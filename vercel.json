@@ -3,11 +3,19 @@
   "builds": [
     {
       "src": "api/assess-health.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.9",
+        "requirements": "api-requirements.txt"
+      }
     },
     {
       "src": "api/health.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.9",
+        "requirements": "api-requirements.txt"
+      }
     },
     {
       "src": "frontend/package.json",
@@ -33,7 +41,7 @@
     "autoAlias": true,
     "autoJobCancelation": true,
     "silent": false,
-    "deployOnPush": true,
+    "deployOnPush": false,
     "ignoreBuildStepFailure": false
   },
   "git": {

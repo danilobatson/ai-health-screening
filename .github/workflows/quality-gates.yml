@@ -7,7 +7,6 @@ on:
     branches: [main, develop]
 
 jobs:
-
   # Quality Gates Summary
   quality-gates-summary:
     name: 📊 Quality Summary
@@ -20,5 +19,5 @@ jobs:
           VERCEL_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           echo "Triggering Vercel deployment..."
-          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          curl -X POST "$VERCEL_HOOK"
           echo "Vercel deployment triggered!"
