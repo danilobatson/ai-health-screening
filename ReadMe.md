@@ -320,7 +320,7 @@ ai-health-screening/
 DATABASE_URL=postgresql://user:pass@host:5432/db
 
 # AI Services
-GOOGLE_API_KEY=your_gemini_api_key
+GEMINI_API_KEY=your_gemini_api_key
 
 # Security
 JWT_SECRET_KEY=your_super_secure_secret_key
@@ -373,7 +373,7 @@ docker build -t ai-health-screening .
 docker run -d \
   -p 8000:8000 \
   -e DATABASE_URL=$DATABASE_URL \
-  -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
+  -e GEMINI_API_KEY=$GEMINI_API_KEY \
   --name health-app \
   ai-health-screening
 ```
