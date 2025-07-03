@@ -1,12 +1,14 @@
 """
 Unit tests for ML Health Service
 """
+
 import pytest
 import pandas as pd
 import numpy as np
 from unittest.mock import Mock, patch
 
 from ml_services.health_ml_service import HealthMLService
+
 
 class TestHealthMLService:
     """Test cases for ML Health Service"""
@@ -20,15 +22,15 @@ class TestHealthMLService:
         """Test ML service initialization"""
         assert ml_service.model_trained == True
         assert ml_service.risk_model is not None
-        assert hasattr(ml_service, 'symptom_encoder')
-        assert hasattr(ml_service, 'condition_encoder')
+        assert hasattr(ml_service, "symptom_encoder")
+        assert hasattr(ml_service, "condition_encoder")
 
     def test_predict_risk_ml_with_string_symptoms(self, ml_service):
         """Test ML prediction with string symptoms"""
         result = ml_service.predict_risk_ml(
             age=30,
             symptoms="mild headache for 2 days",
-            medical_history=["no significant history"]
+            medical_history=["no significant history"],
         )
 
         assert "ml_risk_level" in result
@@ -41,14 +43,10 @@ class TestHealthMLService:
 
     def test_predict_risk_ml_with_legacy_symptoms(self, ml_service):
         """Test ML prediction with legacy symptom format"""
-        legacy_symptoms = [
-            {"name": "headache", "severity": "mild", "duration_days": 2}
-        ]
+        legacy_symptoms = [{"name": "headache", "severity": "mild", "duration_days": 2}]
 
         result = ml_service.predict_risk_ml(
-            age=45,
-            symptoms=legacy_symptoms,
-            medical_history=["diabetes"]
+            age=45, symptoms=legacy_symptoms, medical_history=["diabetes"]
         )
 
         assert "ml_risk_level" in result
@@ -56,11 +54,7 @@ class TestHealthMLService:
 
     def test_predict_risk_ml_empty_symptoms(self, ml_service):
         """Test ML prediction with empty symptoms"""
-        result = ml_service.predict_risk_ml(
-            age=25,
-            symptoms="",
-            medical_history=[]
-        )
+        result = ml_service.predict_risk_ml(age=25, symptoms="", medical_history=[])
 
         # Should use fallback values
         assert "ml_risk_level" in result
@@ -71,7 +65,7 @@ class TestHealthMLService:
         result = ml_service.analyze_health_patterns(
             age=35,
             symptoms="chest pain and shortness of breath",
-            medical_history=["hypertension"]
+            medical_history=["hypertension"],
         )
 
         assert "similar_patients" in result
@@ -86,9 +80,7 @@ class TestHealthMLService:
         ]
 
         result = ml_service.analyze_health_patterns(
-            age=65,
-            symptoms=legacy_symptoms,
-            medical_history=["heart disease"]
+            age=65, symptoms=legacy_symptoms, medical_history=["heart disease"]
         )
 
         assert "similar_patients" in result
@@ -98,7 +90,10 @@ class TestHealthMLService:
         """Test symptom extraction from text"""
         # Test common symptoms
         assert ml_service._extract_primary_symptom("severe chest pain") == "chest pain"
-        assert ml_service._extract_primary_symptom("shortness of breath") == "shortness of breath"
+        assert (
+            ml_service._extract_primary_symptom("shortness of breath")
+            == "shortness of breath"
+        )
         assert ml_service._extract_primary_symptom("mild headache") == "headache"
         assert ml_service._extract_primary_symptom("feeling dizzy") == "dizziness"
 
@@ -133,22 +128,22 @@ class TestHealthMLService:
         result_elderly = ml_service.predict_risk_ml(75, "dizziness", [])
 
         # All should return valid results
-        for result in [result_infant, result_child, result_adult, result_middle, result_elderly]:
+        for result in [
+            result_infant,
+            result_child,
+            result_adult,
+            result_middle,
+            result_elderly,
+        ]:
             assert "ml_risk_level" in result
             assert "risk_score" in result
 
     def test_medical_history_processing(self, ml_service):
         """Test medical history processing"""
         # Test with known conditions
-        result_diabetes = ml_service.predict_risk_ml(
-            50, "fatigue", ["diabetes"]
-        )
-        result_heart = ml_service.predict_risk_ml(
-            60, "chest pain", ["heart disease"]
-        )
-        result_none = ml_service.predict_risk_ml(
-            30, "headache", []
-        )
+        result_diabetes = ml_service.predict_risk_ml(50, "fatigue", ["diabetes"])
+        result_heart = ml_service.predict_risk_ml(60, "chest pain", ["heart disease"])
+        result_none = ml_service.predict_risk_ml(30, "headache", [])
 
         # All should return valid results
         for result in [result_diabetes, result_heart, result_none]:
@@ -168,35 +163,42 @@ class TestHealthMLService:
     def test_synthetic_data_generation(self, ml_service):
         """Test synthetic training data generation"""
         # The service should have generated training data
-        assert hasattr(ml_service, 'training_data')
+        assert hasattr(ml_service, "training_data")
 
         # Re-generate to test the method
         data = ml_service._generate_training_data()
 
         assert isinstance(data, pd.DataFrame)
         assert len(data) == 1000  # Should generate 1000 samples
-        assert 'age' in data.columns
-        assert 'symptom' in data.columns
-        assert 'risk_score' in data.columns
+        assert "age" in data.columns
+        assert "symptom" in data.columns
+        assert "risk_score" in data.columns
 
     def test_calculate_synthetic_risk(self, ml_service):
         """Test synthetic risk calculation"""
         # Test various scenarios
-        low_risk = ml_service._calculate_synthetic_risk(25, "headache", "mild", "none", 1)
-        high_risk = ml_service._calculate_synthetic_risk(75, "chest pain", "severe", "heart disease", 7)
+        low_risk = ml_service._calculate_synthetic_risk(
+            25, "headache", "mild", "none", 1
+        )
+        high_risk = ml_service._calculate_synthetic_risk(
+            75, "chest pain", "severe", "heart disease", 7
+        )
 
         assert 0 <= low_risk <= 1
         assert 0 <= high_risk <= 1
-        assert high_risk > low_risk  # Elderly with severe symptoms should have higher risk
+        assert (
+            high_risk > low_risk
+        )  # Elderly with severe symptoms should have higher risk
 
     def test_ml_model_training_failure(self, monkeypatch):
         """Test ML model training failure handling"""
+
         def mock_failing_fit(*args, **kwargs):
             raise Exception("Training failed")
 
         service = HealthMLService()
         # Mock the fit method to fail
-        monkeypatch.setattr(service.risk_model, 'fit', mock_failing_fit)
+        monkeypatch.setattr(service.risk_model, "fit", mock_failing_fit)
 
         # Try to retrain
         service._train_models()
@@ -208,9 +210,7 @@ class TestHealthMLService:
         """Test ML prediction with unknown medical condition"""
         ml_service = HealthMLService()
         result = ml_service.predict_risk_ml(
-            age=35,
-            symptoms="headache",
-            medical_history=["unknown_rare_condition"]
+            age=35, symptoms="headache", medical_history=["unknown_rare_condition"]
         )
 
         assert "ml_risk_level" in result
@@ -221,9 +221,7 @@ class TestHealthMLService:
         """Test pattern analysis with empty symptoms"""
         ml_service = HealthMLService()
         result = ml_service.analyze_health_patterns(
-            age=30,
-            symptoms=[],
-            medical_history=[]
+            age=30, symptoms=[], medical_history=[]
         )
 
         assert "symptom_patterns" in result
@@ -234,12 +232,16 @@ class TestHealthMLService:
         ml_service = HealthMLService()
 
         # Test with very young age
-        result = ml_service._find_similar_patients(2, [{"name": "fever", "severity": "mild", "duration_days": 1}], [])
+        result = ml_service._find_similar_patients(
+            2, [{"name": "fever", "severity": "mild", "duration_days": 1}], []
+        )
         assert "similar_patient_count" in result
         assert "age_range" in result
 
         # Test with very old age
-        result = ml_service._find_similar_patients(90, [{"name": "fatigue", "severity": "mild", "duration_days": 1}], [])
+        result = ml_service._find_similar_patients(
+            90, [{"name": "fatigue", "severity": "mild", "duration_days": 1}], []
+        )
         assert "similar_patient_count" in result
 
     def test_duration_estimation_edge_cases(self):

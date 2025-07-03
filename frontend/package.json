@@ -21,8 +21,7 @@
     "test:e2e:report": "playwright show-report",
     "test:all": "npm run test:ci && npm run test:e2e",
     "analyze": "npm run build && npx bundlesize",
-    "type-check": "tsc --noEmit",
-    "prepare": "husky install"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@mantine/core": "^8.1.2",

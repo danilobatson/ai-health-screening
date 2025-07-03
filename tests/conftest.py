@@ -1,6 +1,7 @@
 """
 Test configuration and fixtures for AI Health Assessment System
 """
+
 import pytest
 import pytest_asyncio
 import asyncio
@@ -16,40 +17,44 @@ from main import app
 from services.ai_health_service import AIHealthService
 from ml_services.health_ml_service import HealthMLService
 
+
 @pytest_asyncio.fixture
 async def client():
     """Create test client for FastAPI app"""
     from httpx import ASGITransport, AsyncClient
 
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://testserver"
+        transport=ASGITransport(app=app), base_url="http://testserver"
     ) as ac:
         yield ac
+
 
 @pytest.fixture
 def mock_ai_service():
     """Mock AI service for testing"""
     mock_service = Mock(spec=AIHealthService)
-    mock_service.assess_health = AsyncMock(return_value={
-        "risk_level": "Low",
-        "risk_score": 25,
-        "urgency": "Routine",
-        "clinical_reasoning": "Test assessment based on mild symptoms and young age.",
-        "recommendations": [
-            "Monitor symptoms and rest",
-            "Stay hydrated",
-            "Consult healthcare provider if symptoms worsen"
-        ],
-        "red_flags": ["Severe worsening", "High fever"],
-        "confidence_score": 0.85,
-        "ml_insights": "ML model suggests low risk",
-        "analysis_type": "Hybrid AI + ML",
-        "ml_prediction": {"ml_risk_level": "Low", "ml_confidence": 0.8},
-        "ml_patterns": {"similar_patients": {"similar_patient_count": 15}},
-        "hybrid_analysis": True
-    })
+    mock_service.assess_health = AsyncMock(
+        return_value={
+            "risk_level": "Low",
+            "risk_score": 25,
+            "urgency": "Routine",
+            "clinical_reasoning": "Test assessment based on mild symptoms and young age.",
+            "recommendations": [
+                "Monitor symptoms and rest",
+                "Stay hydrated",
+                "Consult healthcare provider if symptoms worsen",
+            ],
+            "red_flags": ["Severe worsening", "High fever"],
+            "confidence_score": 0.85,
+            "ml_insights": "ML model suggests low risk",
+            "analysis_type": "Hybrid AI + ML",
+            "ml_prediction": {"ml_risk_level": "Low", "ml_confidence": 0.8},
+            "ml_patterns": {"similar_patients": {"similar_patient_count": 15}},
+            "hybrid_analysis": True,
+        }
+    )
     return mock_service
+
 
 @pytest.fixture
 def mock_ml_service():
@@ -59,15 +64,16 @@ def mock_ml_service():
         "ml_risk_level": "Low",
         "ml_confidence": 0.8,
         "risk_score": 0.25,
-        "factors": ["Age assessment", "Symptom analysis"]
+        "factors": ["Age assessment", "Symptom analysis"],
     }
     mock_service.analyze_health_patterns.return_value = {
         "similar_patients": {"similar_patient_count": 15},
         "symptom_patterns": {"primary_symptom": "headache"},
         "risk_trends": {"trend": "stable"},
-        "ml_insights": "Pattern analysis complete"
+        "ml_insights": "Pattern analysis complete",
     }
     return mock_service
+
 
 @pytest.fixture
 def sample_health_request():
@@ -78,8 +84,9 @@ def sample_health_request():
         "gender": "male",
         "symptoms": "Mild headache for 2 days, slight fatigue",
         "medical_history": "No significant medical history",
-        "current_medications": "None"
+        "current_medications": "None",
     }
+
 
 @pytest.fixture
 def sample_health_response():
@@ -90,24 +97,25 @@ def sample_health_response():
             "recommendations": [
                 "Monitor symptoms and rest",
                 "Stay hydrated",
-                "Consult healthcare provider if symptoms worsen"
+                "Consult healthcare provider if symptoms worsen",
             ],
             "urgency": "routine",
             "explanation": "ML model suggests low risk",
             "ai_confidence": "high",
-            "model_used": "Hybrid AI + ML"
+            "model_used": "Hybrid AI + ML",
         },
         "ml_assessment": {
             "risk_score": 0.25,
             "confidence": 0.85,
             "risk_level": "low",
-            "factors": ["Age assessment", "Symptom analysis", "ML pattern matching"]
+            "factors": ["Age assessment", "Symptom analysis", "ML pattern matching"],
         },
         "status": "success",
         "backend": "FastAPI Development Server + AI",
         "gemini_enabled": True,
-        "gemini_success": True
+        "gemini_success": True,
     }
+
 
 @pytest.fixture(autouse=True)
 def env_setup(monkeypatch):

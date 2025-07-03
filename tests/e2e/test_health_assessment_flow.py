@@ -1,8 +1,10 @@
 """
 End-to-end tests for health assessment flow
 """
+
 import pytest
 from unittest.mock import patch, Mock, AsyncMock
+
 
 class TestHealthAssessmentFlow:
     """End-to-end test cases for complete health assessment flow"""
@@ -13,37 +15,42 @@ class TestHealthAssessmentFlow:
 
         # Mock successful AI service
         mock_ai_service = Mock()
-        mock_ai_service.assess_health = AsyncMock(return_value={
-            "risk_level": "Moderate",
-            "risk_score": 65,
-            "urgency": "Monitor",
-            "clinical_reasoning": "Patient presents with moderate symptoms that warrant monitoring. The combination of age and symptom presentation suggests a moderate risk level.",
-            "recommendations": [
-                "Schedule appointment with primary care physician within 1-2 days",
-                "Monitor symptoms closely and document any changes",
-                "Maintain adequate hydration and rest",
-                "Seek immediate care if symptoms worsen significantly"
-            ],
-            "red_flags": [
-                "Severe worsening of symptoms",
-                "Development of high fever (>101.5°F)",
-                "Difficulty breathing or chest pain"
-            ],
-            "confidence_score": 0.87,
-            "ml_insights": "ML model analysis indicates moderate risk based on demographic and symptom patterns",
-            "analysis_type": "Hybrid AI + ML Assessment",
-            "ml_prediction": {
-                "ml_risk_level": "Moderate",
-                "ml_confidence": 0.82,
-                "risk_score": 0.65
-            },
-            "ml_patterns": {
-                "similar_patients": {"similar_patient_count": 24},
-                "symptom_patterns": {"primary_symptom": "headache", "severity": "moderate"},
-                "risk_trends": {"trend": "stable"}
-            },
-            "hybrid_analysis": True
-        })
+        mock_ai_service.assess_health = AsyncMock(
+            return_value={
+                "risk_level": "Moderate",
+                "risk_score": 65,
+                "urgency": "Monitor",
+                "clinical_reasoning": "Patient presents with moderate symptoms that warrant monitoring. The combination of age and symptom presentation suggests a moderate risk level.",
+                "recommendations": [
+                    "Schedule appointment with primary care physician within 1-2 days",
+                    "Monitor symptoms closely and document any changes",
+                    "Maintain adequate hydration and rest",
+                    "Seek immediate care if symptoms worsen significantly",
+                ],
+                "red_flags": [
+                    "Severe worsening of symptoms",
+                    "Development of high fever (>101.5°F)",
+                    "Difficulty breathing or chest pain",
+                ],
+                "confidence_score": 0.87,
+                "ml_insights": "ML model analysis indicates moderate risk based on demographic and symptom patterns",
+                "analysis_type": "Hybrid AI + ML Assessment",
+                "ml_prediction": {
+                    "ml_risk_level": "Moderate",
+                    "ml_confidence": 0.82,
+                    "risk_score": 0.65,
+                },
+                "ml_patterns": {
+                    "similar_patients": {"similar_patient_count": 24},
+                    "symptom_patterns": {
+                        "primary_symptom": "headache",
+                        "severity": "moderate",
+                    },
+                    "risk_trends": {"trend": "stable"},
+                },
+                "hybrid_analysis": True,
+            }
+        )
 
         # Complete realistic health assessment request
         health_request = {
@@ -52,10 +59,10 @@ class TestHealthAssessmentFlow:
             "gender": "female",
             "symptoms": "Persistent headaches for the past 4 days, accompanied by mild nausea and sensitivity to light. Pain is moderate (6/10) and located primarily in the temples. Symptoms seem to worsen in the afternoon.",
             "medical_history": "Migraine history, hypothyroidism treated with levothyroxine",
-            "current_medications": "Levothyroxine 75mcg daily, occasional ibuprofen for headaches"
+            "current_medications": "Levothyroxine 75mcg daily, occasional ibuprofen for headaches",
         }
 
-        with patch('main.ai_service', mock_ai_service):
+        with patch("main.ai_service", mock_ai_service):
             # Step 1: Make the assessment request
             response = await client.post("/api/assess-health", json=health_request)
 
@@ -105,9 +112,9 @@ class TestHealthAssessmentFlow:
             call_args = mock_ai_service.assess_health.call_args
 
             # Verify symptoms were passed as string
-            assert call_args[1]['symptoms'] == health_request['symptoms']
-            assert call_args[1]['age'] == health_request['age']
-            assert isinstance(call_args[1]['medical_history'], list)
+            assert call_args[1]["symptoms"] == health_request["symptoms"]
+            assert call_args[1]["age"] == health_request["age"]
+            assert isinstance(call_args[1]["medical_history"], list)
 
     @pytest.mark.asyncio
     async def test_high_risk_assessment_flow(self, client):
@@ -115,29 +122,31 @@ class TestHealthAssessmentFlow:
 
         # Mock high-risk AI response
         mock_ai_service = Mock()
-        mock_ai_service.assess_health = AsyncMock(return_value={
-            "risk_level": "High",
-            "risk_score": 85,
-            "urgency": "Emergency",
-            "clinical_reasoning": "Patient presents with severe symptoms that require immediate medical attention. The combination of chest pain, shortness of breath, and patient's age indicates high risk.",
-            "recommendations": [
-                "Seek immediate emergency medical care",
-                "Call 911 or go to nearest emergency room",
-                "Do not drive yourself to the hospital",
-                "Have someone stay with you until medical help arrives"
-            ],
-            "red_flags": [
-                "Severe chest pain",
-                "Difficulty breathing",
-                "Radiating pain to arm or jaw"
-            ],
-            "confidence_score": 0.95,
-            "ml_insights": "ML model indicates high risk requiring immediate intervention",
-            "analysis_type": "Hybrid AI + ML Emergency Assessment",
-            "ml_prediction": {"ml_risk_level": "High", "ml_confidence": 0.93},
-            "ml_patterns": {"similar_patients": {"similar_patient_count": 8}},
-            "hybrid_analysis": True
-        })
+        mock_ai_service.assess_health = AsyncMock(
+            return_value={
+                "risk_level": "High",
+                "risk_score": 85,
+                "urgency": "Emergency",
+                "clinical_reasoning": "Patient presents with severe symptoms that require immediate medical attention. The combination of chest pain, shortness of breath, and patient's age indicates high risk.",
+                "recommendations": [
+                    "Seek immediate emergency medical care",
+                    "Call 911 or go to nearest emergency room",
+                    "Do not drive yourself to the hospital",
+                    "Have someone stay with you until medical help arrives",
+                ],
+                "red_flags": [
+                    "Severe chest pain",
+                    "Difficulty breathing",
+                    "Radiating pain to arm or jaw",
+                ],
+                "confidence_score": 0.95,
+                "ml_insights": "ML model indicates high risk requiring immediate intervention",
+                "analysis_type": "Hybrid AI + ML Emergency Assessment",
+                "ml_prediction": {"ml_risk_level": "High", "ml_confidence": 0.93},
+                "ml_patterns": {"similar_patients": {"similar_patient_count": 8}},
+                "hybrid_analysis": True,
+            }
+        )
 
         high_risk_request = {
             "name": "Robert Smith",
@@ -145,10 +154,10 @@ class TestHealthAssessmentFlow:
             "gender": "male",
             "symptoms": "Severe chest pain that started 30 minutes ago, radiating to left arm. Shortness of breath, sweating, and nausea. Pain is crushing and rated 9/10.",
             "medical_history": "Previous heart attack 5 years ago, diabetes, high blood pressure",
-            "current_medications": "Metoprolol, Lisinopril, Metformin, Aspirin"
+            "current_medications": "Metoprolol, Lisinopril, Metformin, Aspirin",
         }
 
-        with patch('main.ai_service', mock_ai_service):
+        with patch("main.ai_service", mock_ai_service):
             response = await client.post("/api/assess-health", json=high_risk_request)
 
             assert response.status_code == 200
@@ -156,7 +165,10 @@ class TestHealthAssessmentFlow:
 
             # Verify high-risk indicators
             ai_analysis = data["ai_analysis"]
-            assert "emergency" in ai_analysis["urgency"].lower() or "urgent" in ai_analysis["urgency"].lower()
+            assert (
+                "emergency" in ai_analysis["urgency"].lower()
+                or "urgent" in ai_analysis["urgency"].lower()
+            )
 
             # Verify emergency recommendations
             recommendations = ai_analysis["recommendations"]
@@ -177,29 +189,31 @@ class TestHealthAssessmentFlow:
 
         # Mock low-risk AI response
         mock_ai_service = Mock()
-        mock_ai_service.assess_health = AsyncMock(return_value={
-            "risk_level": "Low",
-            "risk_score": 20,
-            "urgency": "Routine",
-            "clinical_reasoning": "Patient presents with mild, common symptoms that are likely self-limiting. No immediate concerns based on age and symptom presentation.",
-            "recommendations": [
-                "Rest and maintain adequate hydration",
-                "Monitor symptoms for any changes",
-                "Consider over-the-counter pain relief if needed",
-                "Schedule routine follow-up if symptoms persist beyond 1 week"
-            ],
-            "red_flags": [
-                "Symptoms worsen significantly",
-                "Development of fever",
-                "Severe or persistent pain"
-            ],
-            "confidence_score": 0.82,
-            "ml_insights": "ML model indicates low risk with routine monitoring sufficient",
-            "analysis_type": "Hybrid AI + ML Routine Assessment",
-            "ml_prediction": {"ml_risk_level": "Low", "ml_confidence": 0.85},
-            "ml_patterns": {"similar_patients": {"similar_patient_count": 45}},
-            "hybrid_analysis": True
-        })
+        mock_ai_service.assess_health = AsyncMock(
+            return_value={
+                "risk_level": "Low",
+                "risk_score": 20,
+                "urgency": "Routine",
+                "clinical_reasoning": "Patient presents with mild, common symptoms that are likely self-limiting. No immediate concerns based on age and symptom presentation.",
+                "recommendations": [
+                    "Rest and maintain adequate hydration",
+                    "Monitor symptoms for any changes",
+                    "Consider over-the-counter pain relief if needed",
+                    "Schedule routine follow-up if symptoms persist beyond 1 week",
+                ],
+                "red_flags": [
+                    "Symptoms worsen significantly",
+                    "Development of fever",
+                    "Severe or persistent pain",
+                ],
+                "confidence_score": 0.82,
+                "ml_insights": "ML model indicates low risk with routine monitoring sufficient",
+                "analysis_type": "Hybrid AI + ML Routine Assessment",
+                "ml_prediction": {"ml_risk_level": "Low", "ml_confidence": 0.85},
+                "ml_patterns": {"similar_patients": {"similar_patient_count": 45}},
+                "hybrid_analysis": True,
+            }
+        )
 
         low_risk_request = {
             "name": "Emily Chen",
@@ -207,10 +221,10 @@ class TestHealthAssessmentFlow:
             "gender": "female",
             "symptoms": "Mild headache and slight fatigue for 1 day. Headache is dull, rated 3/10. No other symptoms.",
             "medical_history": "No significant medical history",
-            "current_medications": "None"
+            "current_medications": "None",
         }
 
-        with patch('main.ai_service', mock_ai_service):
+        with patch("main.ai_service", mock_ai_service):
             response = await client.post("/api/assess-health", json=low_risk_request)
 
             assert response.status_code == 200
@@ -218,7 +232,10 @@ class TestHealthAssessmentFlow:
 
             # Verify low-risk indicators
             ai_analysis = data["ai_analysis"]
-            assert "routine" in ai_analysis["urgency"].lower() or "low" in ai_analysis["urgency"].lower()
+            assert (
+                "routine" in ai_analysis["urgency"].lower()
+                or "low" in ai_analysis["urgency"].lower()
+            )
 
             # Verify appropriate recommendations for low risk
             recommendations = ai_analysis["recommendations"]
@@ -238,30 +255,32 @@ class TestHealthAssessmentFlow:
         """Test flow for pediatric patient"""
 
         mock_ai_service = Mock()
-        mock_ai_service.assess_health = AsyncMock(return_value={
-            "risk_level": "Moderate",
-            "risk_score": 45,
-            "urgency": "Monitor",
-            "clinical_reasoning": "Pediatric patient with fever requires careful monitoring. Age-appropriate assessment indicates moderate concern.",
-            "recommendations": [
-                "Monitor temperature regularly",
-                "Ensure adequate fluid intake",
-                "Contact pediatrician if fever persists or worsens",
-                "Watch for signs of dehydration"
-            ],
-            "red_flags": [
-                "High fever (>102°F)",
-                "Signs of dehydration",
-                "Difficulty breathing",
-                "Unusual lethargy"
-            ],
-            "confidence_score": 0.88,
-            "ml_insights": "Pediatric ML model indicates moderate risk with close monitoring",
-            "analysis_type": "Hybrid AI + ML Pediatric Assessment",
-            "ml_prediction": {"ml_risk_level": "Moderate", "ml_confidence": 0.84},
-            "ml_patterns": {"similar_patients": {"similar_patient_count": 18}},
-            "hybrid_analysis": True
-        })
+        mock_ai_service.assess_health = AsyncMock(
+            return_value={
+                "risk_level": "Moderate",
+                "risk_score": 45,
+                "urgency": "Monitor",
+                "clinical_reasoning": "Pediatric patient with fever requires careful monitoring. Age-appropriate assessment indicates moderate concern.",
+                "recommendations": [
+                    "Monitor temperature regularly",
+                    "Ensure adequate fluid intake",
+                    "Contact pediatrician if fever persists or worsens",
+                    "Watch for signs of dehydration",
+                ],
+                "red_flags": [
+                    "High fever (>102°F)",
+                    "Signs of dehydration",
+                    "Difficulty breathing",
+                    "Unusual lethargy",
+                ],
+                "confidence_score": 0.88,
+                "ml_insights": "Pediatric ML model indicates moderate risk with close monitoring",
+                "analysis_type": "Hybrid AI + ML Pediatric Assessment",
+                "ml_prediction": {"ml_risk_level": "Moderate", "ml_confidence": 0.84},
+                "ml_patterns": {"similar_patients": {"similar_patient_count": 18}},
+                "hybrid_analysis": True,
+            }
+        )
 
         pediatric_request = {
             "name": "Alex Thompson",
@@ -269,10 +288,10 @@ class TestHealthAssessmentFlow:
             "gender": "male",
             "symptoms": "Fever of 100.8°F for 2 days, mild cough, decreased appetite. Child is still active but slightly more tired than usual.",
             "medical_history": "No significant medical history, up to date on vaccinations",
-            "current_medications": "Children's Tylenol as needed for fever"
+            "current_medications": "Children's Tylenol as needed for fever",
         }
 
-        with patch('main.ai_service', mock_ai_service):
+        with patch("main.ai_service", mock_ai_service):
             response = await client.post("/api/assess-health", json=pediatric_request)
 
             assert response.status_code == 200
@@ -292,30 +311,32 @@ class TestHealthAssessmentFlow:
         """Test flow for elderly patient"""
 
         mock_ai_service = Mock()
-        mock_ai_service.assess_health = AsyncMock(return_value={
-            "risk_level": "High",
-            "risk_score": 75,
-            "urgency": "Urgent",
-            "clinical_reasoning": "Elderly patient with multiple comorbidities presenting with concerning symptoms. Age and medical history indicate higher risk.",
-            "recommendations": [
-                "Contact primary care physician immediately",
-                "Consider emergency care if symptoms worsen",
-                "Monitor blood pressure and blood sugar regularly",
-                "Have family member or caregiver assist with monitoring"
-            ],
-            "red_flags": [
-                "Worsening confusion",
-                "Difficulty breathing",
-                "Chest pain",
-                "Fall risk indicators"
-            ],
-            "confidence_score": 0.91,
-            "ml_insights": "Geriatric ML model indicates elevated risk requiring prompt medical attention",
-            "analysis_type": "Hybrid AI + ML Geriatric Assessment",
-            "ml_prediction": {"ml_risk_level": "High", "ml_confidence": 0.89},
-            "ml_patterns": {"similar_patients": {"similar_patient_count": 12}},
-            "hybrid_analysis": True
-        })
+        mock_ai_service.assess_health = AsyncMock(
+            return_value={
+                "risk_level": "High",
+                "risk_score": 75,
+                "urgency": "Urgent",
+                "clinical_reasoning": "Elderly patient with multiple comorbidities presenting with concerning symptoms. Age and medical history indicate higher risk.",
+                "recommendations": [
+                    "Contact primary care physician immediately",
+                    "Consider emergency care if symptoms worsen",
+                    "Monitor blood pressure and blood sugar regularly",
+                    "Have family member or caregiver assist with monitoring",
+                ],
+                "red_flags": [
+                    "Worsening confusion",
+                    "Difficulty breathing",
+                    "Chest pain",
+                    "Fall risk indicators",
+                ],
+                "confidence_score": 0.91,
+                "ml_insights": "Geriatric ML model indicates elevated risk requiring prompt medical attention",
+                "analysis_type": "Hybrid AI + ML Geriatric Assessment",
+                "ml_prediction": {"ml_risk_level": "High", "ml_confidence": 0.89},
+                "ml_patterns": {"similar_patients": {"similar_patient_count": 12}},
+                "hybrid_analysis": True,
+            }
+        )
 
         elderly_request = {
             "name": "Margaret Williams",
@@ -323,10 +344,10 @@ class TestHealthAssessmentFlow:
             "gender": "female",
             "symptoms": "Increasing confusion over past 2 days, mild shortness of breath with walking, decreased appetite. Family reports patient seems 'not herself'.",
             "medical_history": "Diabetes type 2, hypertension, previous stroke 3 years ago, mild cognitive impairment",
-            "current_medications": "Metformin, Lisinopril, Aspirin, Donepezil"
+            "current_medications": "Metformin, Lisinopril, Aspirin, Donepezil",
         }
 
-        with patch('main.ai_service', mock_ai_service):
+        with patch("main.ai_service", mock_ai_service):
             response = await client.post("/api/assess-health", json=elderly_request)
 
             assert response.status_code == 200
@@ -336,7 +357,10 @@ class TestHealthAssessmentFlow:
             ai_analysis = data["ai_analysis"]
 
             # Should indicate higher urgency for elderly patients
-            assert "urgent" in ai_analysis["urgency"].lower() or "high" in data["ml_assessment"]["risk_level"].lower()
+            assert (
+                "urgent" in ai_analysis["urgency"].lower()
+                or "high" in data["ml_assessment"]["risk_level"].lower()
+            )
 
             # Verify elderly-specific recommendations
             recommendations = ai_analysis["recommendations"]

@@ -24,13 +24,12 @@ engine = create_async_engine(
     DATABASE_URL,
     echo=False,  # Set to True for SQL query logging
     pool_pre_ping=True,
-    pool_recycle=300
+    pool_recycle=300,
 )
 
 # Create async session factory
-AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 
 async def get_db():
     """Dependency to get database session"""
@@ -44,24 +43,26 @@ async def get_db():
         finally:
             await session.close()
 
+
 async def init_db():
     """Initialize database and create tables"""
     try:
         print("🗄️ Connecting to Supabase (direct connection)...")
         print("📋 Recreating database tables with AI fields...")
-        
+
         async with engine.begin() as conn:
             # Drop all tables first (this will remove old schema)
             await conn.run_sync(Base.metadata.drop_all)
             # Create all tables with new schema
             await conn.run_sync(Base.metadata.create_all)
-        
+
         print("✅ Database tables recreated successfully!")
         return True
-        
+
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         return False
+
 
 async def check_db_connection():
     """Check if database connection is working"""

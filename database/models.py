@@ -1,5 +1,15 @@
 # database/models.py
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Float, ForeignKey, Boolean, Text
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    JSON,
+    Float,
+    ForeignKey,
+    Boolean,
+    Text,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -8,8 +18,10 @@ import uuid
 
 Base = declarative_base()
 
+
 class Patient(Base):
     """Patient model with comprehensive health data"""
+
     __tablename__ = "patients"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -32,13 +44,17 @@ class Patient(Base):
     is_active = Column(Boolean, default=True)
 
     # Relationships
-    assessments = relationship("HealthAssessment", back_populates="patient", cascade="all, delete-orphan")
+    assessments = relationship(
+        "HealthAssessment", back_populates="patient", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Patient(id={self.id}, name={self.name}, age={self.age})>"
 
+
 class HealthAssessment(Base):
     """Health assessment records with AI analysis"""
+
     __tablename__ = "health_assessments"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -73,17 +89,23 @@ class HealthAssessment(Base):
 
     # Relationships
     patient = relationship("Patient", back_populates="assessments")
-    symptoms_detail = relationship("SymptomRecord", back_populates="assessment", cascade="all, delete-orphan")
+    symptoms_detail = relationship(
+        "SymptomRecord", back_populates="assessment", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<HealthAssessment(id={self.id}, patient_id={self.patient_id}, risk_level={self.risk_level})>"
 
+
 class SymptomRecord(Base):
     """Detailed symptom tracking"""
+
     __tablename__ = "symptom_records"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    assessment_id = Column(String, ForeignKey("health_assessments.id"), nullable=False, index=True)
+    assessment_id = Column(
+        String, ForeignKey("health_assessments.id"), nullable=False, index=True
+    )
 
     # Symptom details
     name = Column(String(100), nullable=False)
@@ -105,4 +127,6 @@ class SymptomRecord(Base):
     assessment = relationship("HealthAssessment", back_populates="symptoms_detail")
 
     def __repr__(self):
-        return f"<SymptomRecord(id={self.id}, name={self.name}, severity={self.severity})>"
+        return (
+            f"<SymptomRecord(id={self.id}, name={self.name}, severity={self.severity})>"
+        )
