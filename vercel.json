@@ -1,19 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/assess-health.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/health.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/next"
+  "functions": {
+    "api/*.py": {
+      "runtime": "@vercel/python@3.9.16"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/api/assess-health",
@@ -40,11 +31,6 @@
     "deploymentEnabled": {
       "main": true,
       "develop": false
-    }
-  },
-  "functions": {
-    "api/*.py": {
-      "runtime": "@vercel/python@3.9.16"
     }
   }
 }
