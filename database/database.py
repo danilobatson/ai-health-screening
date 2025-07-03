@@ -17,7 +17,12 @@ logger = logging.getLogger(__name__)
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is required")
+    # Use SQLite for testing if no DATABASE_URL is provided
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING") or os.getenv("CI"):
+        DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+        logger.info("Using SQLite for testing environment")
+    else:
+        raise ValueError("DATABASE_URL environment variable is required")
 
 # Create async engine
 engine = create_async_engine(

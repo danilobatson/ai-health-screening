@@ -21,7 +21,7 @@ app = FastAPI(
 )
 
 # Add security middleware (order matters - add security middleware first)
-app.add_middleware(SecurityMiddleware, auth_service=auth_service, rate_limiter=rate_limiter, security_monitor=security_monitor)
+app.add_middleware(SecurityMiddleware, enable_rate_limiting=True, enable_input_validation=True, enable_monitoring=True)
 app.add_middleware(HIPAAMiddleware)
 
 # Add CORS middleware

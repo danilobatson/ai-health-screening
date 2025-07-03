@@ -43,3 +43,10 @@ pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 pytest-mock==3.12.0
 httpx==0.25.2
+
+# Additional testing and CI requirements
+bandit==1.7.5
+safety==2.3.4
+black==23.11.0
+flake8==6.1.0
+aiosqlite==0.19.0

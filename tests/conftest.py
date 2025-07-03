@@ -10,6 +10,13 @@ from unittest.mock import Mock, AsyncMock
 import os
 import sys
 
+# Set up test environment variables first
+os.environ.setdefault("TESTING", "true")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing")
+os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
+if not os.getenv("DATABASE_URL"):
+    os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
+
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
