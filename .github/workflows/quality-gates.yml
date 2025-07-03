@@ -64,6 +64,15 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🔍 Debug file structure
+        run: |
+          echo "Checking file structure..."
+          ls -la src/lib/
+          echo "Validation.js content preview:"
+          head -5 src/lib/validation.js
+          echo "Node modules resolution test:"
+          node -e "console.log('Module resolution test:', require.resolve('./src/lib/validation.js'))"
+
       - name: 🧪 Run frontend tests
         run: npm test -- --coverage --watchAll=false
 
@@ -120,7 +129,7 @@ jobs:
         run: |
           # Test API endpoints
           curl -f http://localhost:8000/health || exit 1
-          
+
           # Test health assessment endpoint
           curl -f -X POST http://localhost:8000/api/assess-health \
             -H "Content-Type: application/json" \
@@ -139,9 +148,9 @@ jobs:
           echo "Backend: ${{ needs.backend-quality.result }}"
           echo "Frontend: ${{ needs.frontend-quality.result }}"
           echo "E2E: ${{ needs.e2e-quality.result }}"
-          
-          if [[ "${{ needs.backend-quality.result }}" == "success" && 
-                "${{ needs.frontend-quality.result }}" == "success" && 
+
+          if [[ "${{ needs.backend-quality.result }}" == "success" &&
+                "${{ needs.frontend-quality.result }}" == "success" &&
                 "${{ needs.e2e-quality.result }}" == "success" ]]; then
             echo "✅ All quality gates passed!"
             exit 0
