@@ -28,8 +28,7 @@
       "dest": "/frontend/$1"
     }
   ],
-  "github": {
-    "deploymentEnabled": false,
-    "autoAlias": true
+  "git": {
+    "deploymentEnabled": false
   }
 }
