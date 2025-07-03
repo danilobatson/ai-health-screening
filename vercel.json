@@ -31,11 +31,5 @@
   "github": {
     "deploymentEnabled": false,
     "autoAlias": true
-  },
-  "git": {
-    "deploymentEnabled": {
-      "main": true,
-      "develop": false
-    }
   }
 }
