@@ -30,7 +30,6 @@
   ],
   "github": {
     "deploymentEnabled": false,
-    "enabled": true,
     "autoAlias": true
   },
   "git": {
