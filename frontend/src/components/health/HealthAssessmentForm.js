@@ -318,7 +318,7 @@ export default function HealthAssessmentForm() {
                 <div>
                   <Title order={2}>AI Medical Assessment</Title>
                   <Text size="sm" style={{ opacity: 0.9 }}>
-                    Powered by {assessmentResult.backend} • Risk Score: {assessmentResult.ml_assessment?.risk_score}/1.0
+                    Risk Score: {assessmentResult.ml_assessment?.risk_score}/1.0
                   </Text>
                 </div>
                 <Badge

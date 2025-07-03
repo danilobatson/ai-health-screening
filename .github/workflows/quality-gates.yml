@@ -36,10 +36,10 @@ jobs:
 
       - name: 🧪 Run backend tests
         env:
-          TESTING: "true"
-          CI: "true"
-          GEMINI_API_KEY: "test-key"
-          SECRET_KEY: "test-secret-key-for-ci"
+          TESTING: 'true'
+          CI: 'true'
+          GEMINI_API_KEY: 'test-key'
+          SECRET_KEY: 'test-secret-key-for-ci'
         run: |
           pytest --cov=services --cov=ml_services --cov=security.auth --cov=security.privacy --cov=database.models --cov-fail-under=85 -v tests/security/ tests/test_database.py tests/unit/
 
@@ -116,9 +116,9 @@ jobs:
 
       - name: 🧪 Run E2E tests
         env:
-          TESTING: "true"
-          DATABASE_URL: "sqlite+aiosqlite:///./test.db"
-          NEXT_PUBLIC_API_URL: "http://localhost:8000"
+          TESTING: 'true'
+          DATABASE_URL: 'sqlite+aiosqlite:///./test.db'
+          NEXT_PUBLIC_API_URL: 'http://localhost:8000'
         run: |
           # Test core API functionality (skip complex E2E tests for now)
           echo "✅ Core backend tests passing - E2E validation successful"
