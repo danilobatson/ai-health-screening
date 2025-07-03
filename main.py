@@ -56,7 +56,7 @@ async def health_check():
     try:
         # Simple health check without relying on internal attributes
         ai_status = "healthy" if ai_service is not None else "not_loaded"
-        
+
         return {
             "status": "healthy",
             "message": "AI Health Assessment API is running",
@@ -79,30 +79,30 @@ async def assess_health(request: HealthAssessmentRequest):
         print(f"🏥 Received assessment request for: {request.name}, age {request.age}")
         print(f"📋 Symptoms: {request.symptoms}")
         print(f"👤 Gender: {request.gender}")
-        
+
         # Validate age
         if request.age < 0 or request.age > 120:
             raise HTTPException(status_code=422, detail="Age must be between 0 and 120")
-        
+
         # Validate required fields
         if not request.symptoms or not request.symptoms.strip():
             raise HTTPException(status_code=422, detail="Symptoms are required")
-        
+
         if ai_service is None:
             raise HTTPException(status_code=500, detail="AI service not available")
-        
+
         # Convert string data to list format for AI service
         medical_history_list = [h.strip() for h in request.medical_history.split(',') if h.strip()] if request.medical_history else []
-        
+
         # Get AI assessment with updated parameters
         ai_response = await ai_service.assess_health(
             symptoms=request.symptoms,  # Now expecting string
             age=request.age,
             medical_history=medical_history_list
         )
-        
+
         print(f"🤖 AI Assessment complete - Risk: {ai_response.get('risk_level', 'Unknown')}")
-        
+
         # Format response to match production API structure that frontend expects
         formatted_response = {
             "ai_analysis": {
@@ -124,9 +124,9 @@ async def assess_health(request: HealthAssessmentRequest):
             "gemini_enabled": True,
             "gemini_success": True
         }
-        
+
         return HealthAssessmentResponse(**formatted_response)
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions
         raise

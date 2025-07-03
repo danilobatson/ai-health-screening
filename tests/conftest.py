@@ -20,7 +20,7 @@ from ml_services.health_ml_service import HealthMLService
 async def client():
     """Create test client for FastAPI app"""
     from httpx import ASGITransport, AsyncClient
-    
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://testserver"

@@ -12,13 +12,13 @@ class AIHealthService:
             api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
                 raise ValueError("GEMINI_API_KEY not found in environment variables")
-            
+
             # Configure Gemini
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel('gemini-1.5-flash')
             print("✅ Google Gemini AI service initialized successfully")
             print("✅ Traditional ML service ready")
-            
+
         except Exception as e:
             print(f"❌ Failed to initialize AI service: {e}")
             raise e
@@ -27,7 +27,7 @@ class AIHealthService:
         """Enhanced AI + ML health assessment"""
         try:
             print(f"🔍 Starting enhanced AI + ML assessment for age {age}")
-            
+
             # Handle both string and list formats for symptoms
             if isinstance(symptoms, str):
                 symptoms_text = symptoms
@@ -36,14 +36,14 @@ class AIHealthService:
                 # Legacy format - list of symptom objects
                 symptoms_text = ", ".join([f"{s.name} ({s.severity} for {s.duration_days} days)" for s in symptoms])
                 symptoms_for_ml = symptoms_text
-            
+
             # Get traditional ML prediction
             ml_prediction = ml_service.predict_risk_ml(age, symptoms_for_ml, medical_history)
             ml_patterns = ml_service.analyze_health_patterns(age, symptoms_for_ml, medical_history)
-            
+
             # Prepare the assessment prompt with ML insights
             history_text = ", ".join(medical_history) if medical_history else "None"
-            
+
             # Include ML insights in the prompt
             ml_context = f"""
             Traditional ML Analysis Results:
@@ -52,27 +52,27 @@ class AIHealthService:
             - Similar Patients: {ml_patterns.get('similar_patients', {}).get('similar_patient_count', 0)} in database
             - Pattern Analysis: Available
             """
-            
+
             prompt = f"""
             You are a professional medical AI assistant with access to both LLM reasoning and traditional ML predictions.
-            
+
             Patient Information:
             - Age: {age} years old
             - Medical History: {history_text}
             - Current Symptoms: {symptoms_text}
-            
+
             {ml_context}
-            
+
             Provide a comprehensive assessment that combines:
             1. Your clinical reasoning (LLM analysis)
             2. Traditional ML prediction insights
             3. Risk assessment based on both approaches
-            
+
             Format your response as JSON with these exact keys:
             {{
                 "risk_level": "string (Low/Moderate/High)",
                 "risk_score": number (0-100),
-                "urgency": "string (Routine/Urgent/Emergency)", 
+                "urgency": "string (Routine/Urgent/Emergency)",
                 "clinical_reasoning": "string (detailed explanation combining LLM + ML insights)",
                 "recommendations": ["string1", "string2"],
                 "red_flags": ["string1", "string2"],
@@ -89,7 +89,7 @@ class AIHealthService:
             # Get AI response
             response = await asyncio.to_thread(self.model.generate_content, prompt)
             response_text = response.text.strip()
-            
+
             print(f"📄 Raw AI response received")
 
             # Parse the response
@@ -107,19 +107,19 @@ class AIHealthService:
 
                 ai_result = json.loads(json_text)
                 print(f"✅ Successfully parsed hybrid AI + ML response")
-                
+
                 # Add ML data to response
                 ai_result["ml_prediction"] = ml_prediction
                 ai_result["ml_patterns"] = ml_patterns
                 ai_result["hybrid_analysis"] = True
-                
+
             except json.JSONDecodeError as e:
                 print(f"⚠️ JSON parsing failed, using fallback with ML insights: {e}")
-                
+
                 # Enhanced fallback with ML insights
                 ml_risk = ml_prediction.get('ml_risk_level', 'Moderate')
                 ml_conf = ml_prediction.get('ml_confidence', 0.8)
-                
+
                 ai_result = {
                     "risk_level": ml_risk,
                     "risk_score": 85 if ml_risk == "High" else 60 if ml_risk == "Moderate" else 35,
@@ -145,7 +145,7 @@ class AIHealthService:
 
             print(f"🎯 Hybrid assessment: {ai_result['risk_level']} risk, score {ai_result['risk_score']}")
             print(f"🤖 ML prediction: {ml_prediction.get('ml_risk_level', 'Unknown')}")
-            
+
             return ai_result
 
         except Exception as e:

@@ -6,11 +6,11 @@ from unittest.mock import patch, Mock, AsyncMock
 
 class TestHealthAssessmentFlow:
     """End-to-end test cases for complete health assessment flow"""
-    
+
     @pytest.mark.asyncio
     async def test_complete_health_assessment_flow(self, client):
         """Test complete flow from request to response"""
-        
+
         # Mock successful AI service
         mock_ai_service = Mock()
         mock_ai_service.assess_health = AsyncMock(return_value={
@@ -44,7 +44,7 @@ class TestHealthAssessmentFlow:
             },
             "hybrid_analysis": True
         })
-        
+
         # Complete realistic health assessment request
         health_request = {
             "name": "Sarah Johnson",
@@ -54,15 +54,15 @@ class TestHealthAssessmentFlow:
             "medical_history": "Migraine history, hypothyroidism treated with levothyroxine",
             "current_medications": "Levothyroxine 75mcg daily, occasional ibuprofen for headaches"
         }
-        
+
         with patch('main.ai_service', mock_ai_service):
             # Step 1: Make the assessment request
             response = await client.post("/api/assess-health", json=health_request)
-            
+
             # Step 2: Verify successful response
             assert response.status_code == 200
             data = response.json()
-            
+
             # Step 3: Verify complete response structure
             assert "ai_analysis" in data
             assert "ml_assessment" in data
@@ -70,7 +70,7 @@ class TestHealthAssessmentFlow:
             assert "backend" in data
             assert "gemini_enabled" in data
             assert "gemini_success" in data
-            
+
             # Step 4: Verify AI analysis completeness
             ai_analysis = data["ai_analysis"]
             assert "reasoning" in ai_analysis
@@ -79,7 +79,7 @@ class TestHealthAssessmentFlow:
             assert "explanation" in ai_analysis
             assert "ai_confidence" in ai_analysis
             assert "model_used" in ai_analysis
-            
+
             # Verify recommendations are actionable
             recommendations = ai_analysis["recommendations"]
             assert isinstance(recommendations, list)
@@ -87,32 +87,32 @@ class TestHealthAssessmentFlow:
             for rec in recommendations:
                 assert isinstance(rec, str)
                 assert len(rec) > 10  # Meaningful recommendations
-            
+
             # Step 5: Verify ML assessment completeness
             ml_assessment = data["ml_assessment"]
             assert "risk_score" in ml_assessment
             assert "confidence" in ml_assessment
             assert "risk_level" in ml_assessment
             assert "factors" in ml_assessment
-            
+
             # Verify numerical values are in correct ranges
             assert 0 <= ml_assessment["risk_score"] <= 1
             assert 0 <= ml_assessment["confidence"] <= 1
             assert ml_assessment["risk_level"] in ["low", "moderate", "high"]
-            
+
             # Step 6: Verify service was called correctly
             mock_ai_service.assess_health.assert_called_once()
             call_args = mock_ai_service.assess_health.call_args
-            
+
             # Verify symptoms were passed as string
             assert call_args[1]['symptoms'] == health_request['symptoms']
             assert call_args[1]['age'] == health_request['age']
             assert isinstance(call_args[1]['medical_history'], list)
-    
+
     @pytest.mark.asyncio
     async def test_high_risk_assessment_flow(self, client):
         """Test flow for high-risk patient scenario"""
-        
+
         # Mock high-risk AI response
         mock_ai_service = Mock()
         mock_ai_service.assess_health = AsyncMock(return_value={
@@ -138,7 +138,7 @@ class TestHealthAssessmentFlow:
             "ml_patterns": {"similar_patients": {"similar_patient_count": 8}},
             "hybrid_analysis": True
         })
-        
+
         high_risk_request = {
             "name": "Robert Smith",
             "age": 68,
@@ -147,17 +147,17 @@ class TestHealthAssessmentFlow:
             "medical_history": "Previous heart attack 5 years ago, diabetes, high blood pressure",
             "current_medications": "Metoprolol, Lisinopril, Metformin, Aspirin"
         }
-        
+
         with patch('main.ai_service', mock_ai_service):
             response = await client.post("/api/assess-health", json=high_risk_request)
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Verify high-risk indicators
             ai_analysis = data["ai_analysis"]
             assert "emergency" in ai_analysis["urgency"].lower() or "urgent" in ai_analysis["urgency"].lower()
-            
+
             # Verify emergency recommendations
             recommendations = ai_analysis["recommendations"]
             emergency_keywords = ["emergency", "911", "immediate", "hospital"]
@@ -166,15 +166,15 @@ class TestHealthAssessmentFlow:
                 for rec in recommendations
             )
             assert has_emergency_rec
-            
+
             # Verify high risk score
             ml_assessment = data["ml_assessment"]
             assert ml_assessment["risk_score"] > 0.7  # High risk threshold
-    
+
     @pytest.mark.asyncio
     async def test_low_risk_assessment_flow(self, client):
         """Test flow for low-risk patient scenario"""
-        
+
         # Mock low-risk AI response
         mock_ai_service = Mock()
         mock_ai_service.assess_health = AsyncMock(return_value={
@@ -200,7 +200,7 @@ class TestHealthAssessmentFlow:
             "ml_patterns": {"similar_patients": {"similar_patient_count": 45}},
             "hybrid_analysis": True
         })
-        
+
         low_risk_request = {
             "name": "Emily Chen",
             "age": 24,
@@ -209,17 +209,17 @@ class TestHealthAssessmentFlow:
             "medical_history": "No significant medical history",
             "current_medications": "None"
         }
-        
+
         with patch('main.ai_service', mock_ai_service):
             response = await client.post("/api/assess-health", json=low_risk_request)
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Verify low-risk indicators
             ai_analysis = data["ai_analysis"]
             assert "routine" in ai_analysis["urgency"].lower() or "low" in ai_analysis["urgency"].lower()
-            
+
             # Verify appropriate recommendations for low risk
             recommendations = ai_analysis["recommendations"]
             routine_keywords = ["rest", "monitor", "hydration", "routine"]
@@ -228,15 +228,15 @@ class TestHealthAssessmentFlow:
                 for rec in recommendations
             )
             assert has_routine_rec
-            
+
             # Verify low risk score
             ml_assessment = data["ml_assessment"]
             assert ml_assessment["risk_score"] < 0.4  # Low risk threshold
-    
+
     @pytest.mark.asyncio
     async def test_pediatric_assessment_flow(self, client):
         """Test flow for pediatric patient"""
-        
+
         mock_ai_service = Mock()
         mock_ai_service.assess_health = AsyncMock(return_value={
             "risk_level": "Moderate",
@@ -262,7 +262,7 @@ class TestHealthAssessmentFlow:
             "ml_patterns": {"similar_patients": {"similar_patient_count": 18}},
             "hybrid_analysis": True
         })
-        
+
         pediatric_request = {
             "name": "Alex Thompson",
             "age": 8,
@@ -271,13 +271,13 @@ class TestHealthAssessmentFlow:
             "medical_history": "No significant medical history, up to date on vaccinations",
             "current_medications": "Children's Tylenol as needed for fever"
         }
-        
+
         with patch('main.ai_service', mock_ai_service):
             response = await client.post("/api/assess-health", json=pediatric_request)
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Verify pediatric-appropriate recommendations
             recommendations = data["ai_analysis"]["recommendations"]
             pediatric_keywords = ["pediatrician", "child", "temperature", "fluid"]
@@ -286,11 +286,11 @@ class TestHealthAssessmentFlow:
                 for rec in recommendations
             )
             assert has_pediatric_rec
-    
+
     @pytest.mark.asyncio
     async def test_elderly_assessment_flow(self, client):
         """Test flow for elderly patient"""
-        
+
         mock_ai_service = Mock()
         mock_ai_service.assess_health = AsyncMock(return_value={
             "risk_level": "High",
@@ -316,7 +316,7 @@ class TestHealthAssessmentFlow:
             "ml_patterns": {"similar_patients": {"similar_patient_count": 12}},
             "hybrid_analysis": True
         })
-        
+
         elderly_request = {
             "name": "Margaret Williams",
             "age": 82,
@@ -325,19 +325,19 @@ class TestHealthAssessmentFlow:
             "medical_history": "Diabetes type 2, hypertension, previous stroke 3 years ago, mild cognitive impairment",
             "current_medications": "Metformin, Lisinopril, Aspirin, Donepezil"
         }
-        
+
         with patch('main.ai_service', mock_ai_service):
             response = await client.post("/api/assess-health", json=elderly_request)
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Verify geriatric-appropriate assessment
             ai_analysis = data["ai_analysis"]
-            
+
             # Should indicate higher urgency for elderly patients
             assert "urgent" in ai_analysis["urgency"].lower() or "high" in data["ml_assessment"]["risk_level"].lower()
-            
+
             # Verify elderly-specific recommendations
             recommendations = ai_analysis["recommendations"]
             geriatric_keywords = ["physician", "caregiver", "monitor", "family"]
