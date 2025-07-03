@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from database.models import Base, Patient, HealthAssessment, SymptomRecord
 from database.database import get_db
-from services.ai_health_service import HealthAssessmentService
+from services.ai_health_service import AIHealthService
 import uuid
 
 

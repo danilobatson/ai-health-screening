@@ -9,3 +9,37 @@ requests==2.31.0
 scikit-learn==1.3.2
 pandas==2.1.3
 numpy==1.25.2
+
+# Database support
+psycopg2-binary==2.9.9
+
+# Caching (optional)
+redis==5.0.1
+
+# Performance monitoring
+psutil==5.9.6
+
+# Security and Authentication (Phase 10)
+pyjwt==2.8.0
+passlib==1.7.4
+bcrypt==4.1.2
+cryptography==45.0.5
+python-jose[cryptography]==3.3.0
+
+# Security validation and monitoring
+pydantic==2.5.0
+email-validator==2.1.0
+python-dateutil==2.8.2
+
+# Rate limiting and security
+slowapi==0.1.9
+
+# HIPAA compliance and audit
+structlog==23.2.0
+
+# Testing dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+httpx==0.25.2
