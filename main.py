@@ -5,14 +5,24 @@ from typing import List, Optional
 import os
 from dotenv import load_dotenv
 
+# Security imports
+from security.middleware import SecurityMiddleware, HIPAAMiddleware
+from security.routes import get_security_routers
+from security.auth import auth_service
+from security.api_security import rate_limiter, security_monitor
+
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(
     title="AI Health Assessment System",
-    description="Professional healthcare API with AI-powered risk assessment",
+    description="Professional healthcare API with AI-powered risk assessment and enterprise security",
     version="1.0.0",
 )
+
+# Add security middleware (order matters - add security middleware first)
+app.add_middleware(SecurityMiddleware, auth_service=auth_service, rate_limiter=rate_limiter, security_monitor=security_monitor)
+app.add_middleware(HIPAAMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
@@ -22,6 +32,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include security routers
+security_routers = get_security_routers()
+for router in security_routers:
+    app.include_router(router)
+
 
 # Initialize AI service (we'll do this safely)
 ai_service = None

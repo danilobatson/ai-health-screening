@@ -50,6 +50,15 @@ cover/
 .env.test.local
 .env.production.local
 
+# Security sensitive files
+.encryption_key
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+private_keys/
+
 # OS generated files
 .DS_Store
 .DS_Store?

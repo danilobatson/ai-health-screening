@@ -130,3 +130,65 @@ class SymptomRecord(Base):
         return (
             f"<SymptomRecord(id={self.id}, name={self.name}, severity={self.severity})>"
         )
+
+
+class MLModel(Base):
+    """ML model versioning and metadata"""
+
+    __tablename__ = "ml_models"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False)
+    model_type = Column(String(50), nullable=False)
+    version = Column(String(20), nullable=False)
+
+    # Model performance metrics
+    accuracy = Column(Float, nullable=True)
+    precision = Column(Float, nullable=True)
+    recall = Column(Float, nullable=True)
+    f1_score = Column(Float, nullable=True)
+
+    # Training details
+    training_data_size = Column(Integer, nullable=True)
+    training_date = Column(DateTime, nullable=True)
+    hyperparameters = Column(JSON, nullable=True)
+
+    # Model status
+    is_active = Column(Boolean, default=True)
+    deployment_date = Column(DateTime, nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<MLModel(id={self.id}, name={self.name}, version={self.version})>"
+
+
+class AuditLog(Base):
+    """Audit trail for database operations"""
+
+    __tablename__ = "audit_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Audit details
+    action = Column(String(50), nullable=False)
+    table_name = Column(String(50), nullable=False)
+    record_id = Column(String, nullable=True)
+    user_id = Column(String, nullable=True)
+
+    # Data changes
+    old_values = Column(JSON, nullable=True)
+    new_values = Column(JSON, nullable=True)
+
+    # Context information
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    session_id = Column(String(100), nullable=True)
+
+    # Metadata
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<AuditLog(id={self.id}, action={self.action}, table_name={self.table_name})>"
