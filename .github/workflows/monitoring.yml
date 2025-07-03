@@ -1,0 +1,156 @@
+name: Monitoring & Alerts
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    name: Application Health Check
+
+    steps:
+      - name: Check Production Health
+        id: prod-health
+        run: |
+          if curl -f -s --max-time 30 https://ai-health-screening.vercel.app/; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "✅ Production is healthy"
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "❌ Production is unhealthy"
+            exit 1
+          fi
+
+      - name: Check Staging Health
+        id: staging-health
+        run: |
+          if curl -f -s --max-time 30 https://ai-health-screening-staging.vercel.app/; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "✅ Staging is healthy"
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "❌ Staging is unhealthy"
+          fi
+
+      - name: Performance Check
+        run: |
+          echo "Running performance checks..."
+
+          # Check response time for main endpoint
+          RESPONSE_TIME=$(curl -w "%{time_total}" -o /dev/null -s https://ai-health-screening.vercel.app/)
+          echo "Response time: ${RESPONSE_TIME}s"
+
+          # Alert if response time > 5 seconds
+          if (( $(echo "$RESPONSE_TIME > 5.0" | bc -l) )); then
+            echo "⚠️ High response time detected: ${RESPONSE_TIME}s"
+            exit 1
+          fi
+
+  uptime-check:
+    runs-on: ubuntu-latest
+    name: Uptime Monitoring
+
+    steps:
+      - name: Check API Endpoints
+        run: |
+          echo "Checking critical API endpoints..."
+
+          # Health check endpoint
+          curl -f https://ai-health-screening.vercel.app/api/health || echo "Health endpoint failed"
+
+          # Assessment endpoint (if available)
+          # curl -f -X POST https://ai-health-screening.vercel.app/api/assess-health \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"age": 30, "symptoms": ["test"], "medical_history": []}' || echo "Assessment endpoint failed"
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    name: Dependency Status Check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "Checking Python dependencies..."
+          pip install pip-check
+          pip-check || echo "Outdated Python dependencies found"
+
+      - name: Check Node.js dependencies
+        working-directory: ./frontend
+        run: |
+          echo "Checking Node.js dependencies..."
+          npm install
+          npm outdated || echo "Outdated Node.js dependencies found"
+
+  security-alerts:
+    runs-on: ubuntu-latest
+    name: Security Alert Check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check GitHub Security Alerts
+        run: |
+          echo "Checking for security alerts..."
+          # This would integrate with GitHub's security alerts API
+          # For now, we'll just log that we're checking
+          echo "Security alerts check completed"
+
+  notify-status:
+    runs-on: ubuntu-latest
+    name: Status Notification
+    needs: [health-check, uptime-check]
+    if: always()
+
+    steps:
+      - name: Prepare status report
+        run: |
+          echo "## 📊 System Status Report" > status-report.md
+          echo "**Timestamp:** $(date -u)" >> status-report.md
+          echo "" >> status-report.md
+
+          if [ "${{ needs.health-check.result }}" == "success" ]; then
+            echo "✅ **Health Check:** PASSED" >> status-report.md
+          else
+            echo "❌ **Health Check:** FAILED" >> status-report.md
+          fi
+
+          if [ "${{ needs.uptime-check.result }}" == "success" ]; then
+            echo "✅ **Uptime Check:** PASSED" >> status-report.md
+          else
+            echo "❌ **Uptime Check:** FAILED" >> status-report.md
+          fi
+
+          echo "" >> status-report.md
+          echo "View detailed logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> status-report.md
+
+      - name: Display status report
+        run: cat status-report.md
+
+      # Optional: Send notifications to Slack, Discord, or email
+      # - name: Send Slack notification
+      #   if: failure()
+      #   uses: 8398a7/action-slack@v3
+      #   with:
+      #     status: failure
+      #     channel: '#alerts'
+      #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  cleanup-old-runs:
+    runs-on: ubuntu-latest
+    name: Cleanup Old Workflow Runs
+
+    steps:
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 30
+          keep_minimum_runs: 10

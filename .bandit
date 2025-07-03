@@ -1,0 +1,7 @@
+# Bandit security configuration
+[bandit]
+exclude_dirs = tests,venv,.venv,node_modules
+skips = B101,B601
+
+# B101: Test for use of assert
+# B601: Paramiko calls without specifying ssh config

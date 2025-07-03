@@ -1,0 +1,295 @@
+name: Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    name: Build Backend Image
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      backend-image: ${{ steps.meta.outputs.tags }}
+      backend-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Create Dockerfile for backend
+        run: |
+          cat > Dockerfile.backend << 'EOF'
+          FROM python:3.11-slim
+
+          WORKDIR /app
+
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              gcc \
+              && rm -rf /var/lib/apt/lists/*
+
+          # Copy requirements and install Python dependencies
+          COPY requirements.txt .
+          RUN pip install --no-cache-dir -r requirements.txt
+
+          # Copy application code
+          COPY . .
+
+          # Create non-root user
+          RUN useradd --create-home --shell /bin/bash app && \
+              chown -R app:app /app
+          USER app
+
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+              CMD curl -f http://localhost:8000/ || exit 1
+
+          EXPOSE 8000
+
+          CMD ["python", "main.py"]
+          EOF
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    name: Build Frontend Image
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      frontend-image: ${{ steps.meta.outputs.tags }}
+      frontend-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Create Dockerfile for frontend
+        run: |
+          cat > frontend/Dockerfile << 'EOF'
+          # Build stage
+          FROM node:18-alpine AS builder
+
+          WORKDIR /app
+
+          # Copy package files
+          COPY package*.json ./
+          RUN npm ci --only=production
+
+          # Copy source code and build
+          COPY . .
+          RUN npm run build
+
+          # Production stage
+          FROM node:18-alpine AS production
+
+          WORKDIR /app
+
+          # Create non-root user
+          RUN addgroup -g 1001 -S nodejs && \
+              adduser -S nextjs -u 1001
+
+          # Copy built application
+          COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+          COPY --from=builder /app/node_modules ./node_modules
+          COPY --from=builder /app/package.json ./package.json
+          COPY --from=builder /app/public ./public
+
+          USER nextjs
+
+          EXPOSE 3000
+
+          ENV PORT 3000
+          ENV NODE_ENV production
+
+          CMD ["npm", "start"]
+          EOF
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    needs: [build-backend, build-frontend]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+
+    environment:
+      name: staging
+      url: https://ai-health-screening-staging.vercel.app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (Staging)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+      - name: Run staging health check
+        run: |
+          echo "Waiting for deployment to be ready..."
+          sleep 30
+
+          # Health check with retries
+          for i in {1..10}; do
+            if curl -f https://ai-health-screening-staging.vercel.app/; then
+              echo "Staging deployment successful!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+          echo "Staging deployment health check failed"
+          exit 1
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: [build-backend, build-frontend, deploy-staging]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+
+    environment:
+      name: production
+      url: https://ai-health-screening.vercel.app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
+          vercel-args: '--prod'
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+      - name: Run production health check
+        run: |
+          echo "Waiting for production deployment to be ready..."
+          sleep 30
+
+          # Health check with retries
+          for i in {1..10}; do
+            if curl -f https://ai-health-screening.vercel.app/; then
+              echo "Production deployment successful!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+          echo "Production deployment health check failed"
+          exit 1
+
+      - name: Notify deployment success
+        run: |
+          echo "🚀 Production deployment completed successfully!"
+          echo "Frontend: https://ai-health-screening.vercel.app"
+          echo "Backend Images: ${{ needs.build-backend.outputs.backend-image }}"
+          echo "Frontend Images: ${{ needs.build-frontend.outputs.frontend-image }}"
+
+  rollback:
+    runs-on: ubuntu-latest
+    name: Rollback Deployment
+    if: failure() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Rollback notification
+        run: |
+          echo "⚠️ Deployment failed - manual rollback required"
+          echo "Check the failed job logs and consider rolling back to the previous version"

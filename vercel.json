@@ -6,7 +6,7 @@
       "use": "@vercel/python"
     },
     {
-      "src": "api/health.py", 
+      "src": "api/health.py",
       "use": "@vercel/python"
     },
     {
@@ -27,5 +27,22 @@
       "src": "/(.*)",
       "dest": "/frontend/$1"
     }
-  ]
+  ],
+  "github": {
+    "enabled": true,
+    "autoAlias": false,
+    "autoJobCancelation": true,
+    "silent": false
+  },
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "develop": false
+    }
+  },
+  "functions": {
+    "api/*.py": {
+      "runtime": "@vercel/python@3.9.16"
+    }
+  }
 }

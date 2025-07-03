@@ -1,0 +1,45 @@
+# Pylint configuration file
+[MASTER]
+load-plugins=pylint.extensions.check_elif,
+            pylint.extensions.bad_builtin,
+            pylint.extensions.docparams,
+            pylint.extensions.for_any_all,
+            pylint.extensions.set_membership,
+            pylint.extensions.code_style,
+            pylint.extensions.overlapping_except,
+            pylint.extensions.typing,
+            pylint.extensions.redefined_variable_type,
+            pylint.extensions.comparison_placement
+
+[MESSAGES CONTROL]
+disable=missing-module-docstring,
+        missing-class-docstring,
+        missing-function-docstring,
+        too-few-public-methods,
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        too-many-statements,
+        line-too-long,
+        invalid-name,
+        import-error
+
+[FORMAT]
+max-line-length=127
+max-module-lines=1000
+
+[DESIGN]
+max-args=7
+max-locals=15
+max-returns=6
+max-branches=12
+max-statements=50
+max-parents=7
+max-attributes=7
+max-public-methods=20
+max-bool-expr=5
+
+[SIMILARITIES]
+min-similarity-lines=4
+ignore-comments=yes
+ignore-docstrings=yes

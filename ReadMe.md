@@ -1,11 +1,27 @@
 # 🏥 AI Healthcare Assessment System
 
+<!-- CI/CD Status Badges -->
+[![CI/CD Pipeline](https://github.com/yourusername/ai-health-screening/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/yourusername/ai-health-screening/actions/workflows/ci-cd.yml)
+[![Security Scan](https://github.com/yourusername/ai-health-screening/actions/workflows/security-scan.yml/badge.svg)](https://github.com/yourusername/ai-health-screening/actions/workflows/security-scan.yml)
+[![Code Quality](https://github.com/yourusername/ai-health-screening/actions/workflows/code-quality.yml/badge.svg)](https://github.com/yourusername/ai-health-screening/actions/workflows/code-quality.yml)
+[![Deployment](https://github.com/yourusername/ai-health-screening/actions/workflows/deployment.yml/badge.svg)](https://github.com/yourusername/ai-health-screening/actions/workflows/deployment.yml)
+
+<!-- Coverage and Quality Badges -->
+[![Backend Coverage](https://codecov.io/gh/yourusername/ai-health-screening/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/yourusername/ai-health-screening)
+[![Frontend Coverage](https://codecov.io/gh/yourusername/ai-health-screening/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/yourusername/ai-health-screening)
+[![Code Quality Grade](https://img.shields.io/codefactor/grade/github/yourusername/ai-health-screening?label=Code%20Quality)](https://www.codefactor.io/repository/github/yourusername/ai-health-screening)
+
+<!-- Tech Stack Badges -->
+[![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat&logo=python)](https://python.org)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat&logo=next.js)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)](https://reactjs.org)
+[![Mantine](https://img.shields.io/badge/Mantine-UI-339AF0?style=flat&logo=mantine)](https://mantine.dev)
+
+<!-- Deployment and Demo Badges -->
 [![Deploy with Vercel](https://vercel.com/button)](https://ai-health-screening.vercel.app)
 [![Live Demo](https://img.shields.io/badge/Live-Demo-00C7B7?style=flat&logo=vercel&logoColor=white)](https://ai-health-screening.vercel.app)
-[![Python](https://img.shields.io/badge/Python-3.9-blue?style=flat&logo=python)](https://python.org)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)](https://nextjs.org)
 
-> **Professional healthcare application combining Google Gemini AI with machine learning for intelligent medical risk assessment**
+> **Enterprise-grade healthcare application with 90%+ test coverage, combining Google Gemini AI with machine learning for intelligent medical risk assessment**
 
 ## 🎯 Live Demo
 **🚀 [Try it now: ai-health-screening.vercel.app](https://ai-health-screening.vercel.app)**
@@ -14,18 +30,18 @@
 
 ## 🏆 Project Highlights
 
-### **AI/ML Integration**
+### **🔬 AI/ML Integration**
 - **Google Gemini Pro** - Advanced medical reasoning and clinical analysis
 - **Scikit-learn ML** - Risk scoring algorithms with demographic factors
 - **Hybrid Intelligence** - Combines modern LLMs with traditional ML
 
-### **Professional Healthcare UI**
+### **🎨 Professional Healthcare UI**
 - **Medical-grade interface** designed for healthcare workflows
 - **Comprehensive form validation** with real-time feedback
 - **Professional assessment reports** with clinical reasoning
 - **Mobile-responsive design** for all devices
 
-### **Enterprise Architecture**
+### **🏗️ Enterprise Architecture**
 - **Python serverless backend** on Vercel with auto-scaling
 - **Always-on deployment** (zero spin-down for reliable demos)
 - **CI/CD pipeline** with GitHub auto-deployment
