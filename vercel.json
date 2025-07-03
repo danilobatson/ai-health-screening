@@ -30,9 +30,11 @@
   ],
   "github": {
     "enabled": true,
-    "autoAlias": false,
+    "autoAlias": true,
     "autoJobCancelation": true,
-    "silent": false
+    "silent": false,
+    "deployOnPush": true,
+    "ignoreBuildStepFailure": false
   },
   "git": {
     "deploymentEnabled": {
