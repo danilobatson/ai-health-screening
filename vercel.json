@@ -29,12 +29,13 @@
     }
   ],
   "github": {
-    "enabled": false,
+    "enabled": true,
     "autoAlias": true,
-    "autoJobCancelation": true,
+    "autoJobCancelation": false,
     "silent": false,
     "deployOnPush": false,
     "ignoreBuildStepFailure": false
+
   },
   "git": {
     "deploymentEnabled": {
