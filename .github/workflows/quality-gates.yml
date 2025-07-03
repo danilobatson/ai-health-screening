@@ -128,12 +128,12 @@ jobs:
       - name: 🧪 Run E2E tests
         run: |
           # Test API endpoints
-          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:8000/ || exit 1
 
           # Test health assessment endpoint
           curl -f -X POST http://localhost:8000/api/assess-health \
             -H "Content-Type: application/json" \
-            -d '{"name":"Test","age":30,"symptoms":"headache","medical_history":"none"}' || exit 1
+            -d '{"name":"Test","age":30,"gender":"male","symptoms":"headache","medical_history":"none"}' || exit 1
 
   # Quality Gates Summary
   quality-gates-summary:
