@@ -29,12 +29,9 @@
     }
   ],
   "github": {
+    "deploymentEnabled": false,
     "enabled": true,
-    "autoAlias": true,
-    "autoJobCancelation": true,
-    "deployOnPush": false,
-    "ignoreBuildStepFailure": false,
-    "deploymentEnabled": false
+    "autoAlias": true
   },
   "git": {
     "deploymentEnabled": {
