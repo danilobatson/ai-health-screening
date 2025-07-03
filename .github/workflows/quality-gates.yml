@@ -160,7 +160,7 @@ jobs:
           fi
 
   # Deploy to Vercel
-  deploy-to-vercel:
+  # deploy-to-vercel:
     name: 🚀 Vercel Deployment
     runs-on: ubuntu-latest
     needs: [quality-gates-summary]
