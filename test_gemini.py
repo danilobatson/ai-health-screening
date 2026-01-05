@@ -39,7 +39,7 @@ test_data = {
 }
 
 # Try each model
-for model_name in ["gemini-1.5-flash", "gemini-1.5-pro"]:
+for model_name in ["gemini-2.5-flash-lite", "gemini-2.5-flash-lite"]:
     print(f"\n--- Testing {model_name} ---")
     try:
         model = genai.GenerativeModel(model_name)

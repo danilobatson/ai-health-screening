@@ -170,7 +170,7 @@ class TestAIHealthService:
                 service = AIHealthService()
 
                 mock_genai.configure.assert_called_once_with(api_key="test_key")
-                mock_genai.GenerativeModel.assert_called_once_with("gemini-1.5-flash")
+                mock_genai.GenerativeModel.assert_called_once_with("gemini-2.5-flash-lite")
                 assert service.model == mock_model
 
     def test_ai_service_initialization_failure(self):
