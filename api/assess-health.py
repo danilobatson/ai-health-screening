@@ -199,66 +199,75 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     genai.configure(api_key=gemini_api_key)
 
-                    for model_name in ["gemini-2.0-flash-lite", "gemini-1.5-flash"]:
+                    for model_name in ["gemini-1.5-flash", "gemini-1.5-pro"]:
                         try:
                             model = genai.GenerativeModel(model_name)
 
-                            prompt = f"""Medical assessment for {age}-year-old {cleaned_data['gender']} with symptoms: {cleaned_data['symptoms']}
+                            prompt = f"""You are a medical AI assistant. Analyze this patient case and respond in JSON format only.
 
+Patient: {age}-year-old {cleaned_data['gender']}
+Symptoms: {cleaned_data['symptoms']}
 Medical History: {cleaned_data['medical_history'] or 'None reported'}
 Current Medications: {cleaned_data['current_medications'] or 'None reported'}
 
-Provide EXACTLY this format:
-
-REASONING: [2-3 sentences explaining the clinical assessment for these symptoms]
-
-RECOMMENDATION: [First specific medical recommendation]
-RECOMMENDATION: [Second specific recommendation]  
-RECOMMENDATION: [Third specific recommendation]
-RECOMMENDATION: [Fourth specific recommendation]
-RECOMMENDATION: [Fifth specific recommendation]
-RECOMMENDATION: [Sixth specific recommendation]"""
+Respond with ONLY valid JSON (no markdown, no code blocks):
+{{"reasoning": "2-3 sentence clinical assessment", "recommendations": ["recommendation 1", "recommendation 2", "recommendation 3", "recommendation 4", "recommendation 5", "recommendation 6"]}}"""
 
                             response = model.generate_content(prompt)
 
                             if response and response.text:
-                                ai_text = response.text
-                                print(f"Gemini response: {ai_text[:200]}...")
+                                ai_text = response.text.strip()
+                                print(f"Gemini raw response: {ai_text[:300]}...")
 
-                                # Parse structured response
-                                lines = [
-                                    line.strip()
-                                    for line in ai_text.split("\n")
-                                    if line.strip()
-                                ]
-                                reasoning = ""
-                                recommendations = []
+                                # Try to parse as JSON first
+                                try:
+                                    # Clean up response - remove markdown code blocks if present
+                                    clean_text = ai_text
+                                    if "```json" in clean_text:
+                                        clean_text = clean_text.split("```json")[1].split("```")[0]
+                                    elif "```" in clean_text:
+                                        clean_text = clean_text.split("```")[1].split("```")[0]
+                                    clean_text = clean_text.strip()
 
-                                for line in lines:
-                                    if line.startswith("REASONING:"):
-                                        reasoning = line.replace(
-                                            "REASONING:", ""
-                                        ).strip()
-                                    elif line.startswith("RECOMMENDATION:"):
-                                        rec = line.replace(
-                                            "RECOMMENDATION:", ""
-                                        ).strip()
-                                        if rec and len(rec) > 10:
-                                            recommendations.append(rec)
+                                    parsed = json.loads(clean_text)
+                                    reasoning = parsed.get("reasoning", "")
+                                    recommendations = parsed.get("recommendations", [])
 
-                                if reasoning and len(recommendations) >= 4:
+                                    if reasoning and len(recommendations) >= 3:
+                                        ai_analysis = {
+                                            "reasoning": reasoning,
+                                            "recommendations": recommendations[:6],
+                                            "urgency": urgency,
+                                            "explanation": f"Analysis by {model_name} with clinical reasoning.",
+                                            "ai_confidence": "high",
+                                            "model_used": f"Google {model_name}",
+                                        }
+                                        gemini_success = True
+                                        print(f"Gemini JSON parsing successful with {model_name}")
+                                        break
+                                except json.JSONDecodeError:
+                                    print(f"JSON parsing failed, trying text parsing...")
+
+                                # Fallback: try to extract useful content from free text
+                                if not gemini_success and len(ai_text) > 50:
+                                    # Use the raw response as reasoning
                                     ai_analysis = {
-                                        "reasoning": reasoning,
-                                        "recommendations": recommendations[:6],
+                                        "reasoning": ai_text[:500].replace('\n', ' ').strip(),
+                                        "recommendations": [
+                                            f"Seek {urgency} priority medical evaluation",
+                                            "Monitor symptoms and document changes",
+                                            "Stay hydrated and rest appropriately",
+                                            "Contact healthcare provider if symptoms worsen",
+                                            "Keep emergency contacts available",
+                                            "Follow up with your primary care physician",
+                                        ],
                                         "urgency": urgency,
-                                        "explanation": f"Analysis by {model_name} with clinical reasoning.",
-                                        "ai_confidence": "high",
+                                        "explanation": f"Analysis by {model_name}.",
+                                        "ai_confidence": "medium",
                                         "model_used": f"Google {model_name}",
                                     }
                                     gemini_success = True
-                                    print(
-                                        f"Gemini analysis successful with {model_name}"
-                                    )
+                                    print(f"Gemini text extraction successful with {model_name}")
                                     break
                         except Exception as e:
                             print(f"Model {model_name} failed: {str(e)}")

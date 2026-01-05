@@ -19,7 +19,7 @@ class handler(BaseHTTPRequestHandler):
 
         # Check Gemini API key status
         gemini_api_key = os.getenv("GEMINI_API_KEY")
-        
+
         # Debug information
         debug_info = {
             "env_vars_present": list(os.environ.keys()),
@@ -27,7 +27,7 @@ class handler(BaseHTTPRequestHandler):
             "gemini_api_key_value_length": len(gemini_api_key) if gemini_api_key else 0,
             "gemini_api_key_starts_with": gemini_api_key[:5] + "..." if gemini_api_key and len(gemini_api_key) > 5 else None
         }
-        
+
         gemini_status = {
             "gemini_library_available": GEMINI_AVAILABLE,
             "gemini_api_key_configured": bool(gemini_api_key),
