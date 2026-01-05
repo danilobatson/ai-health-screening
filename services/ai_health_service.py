@@ -16,7 +16,7 @@ class AIHealthService:
 
             # Configure Gemini
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
+            self.model = genai.GenerativeModel("gemini-2.5-flash-lite")
             print("✅ Google Gemini AI service initialized successfully")
             print("✅ Traditional ML service ready")
 

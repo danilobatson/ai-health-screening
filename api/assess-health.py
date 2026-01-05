@@ -199,7 +199,7 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     genai.configure(api_key=gemini_api_key)
 
-                    for model_name in ["gemini-1.5-flash", "gemini-1.5-pro"]:
+                    for model_name in ["gemini-2.5-flash-lite", "gemini-2.0-flash"]:
                         try:
                             model = genai.GenerativeModel(model_name)
 
@@ -270,7 +270,11 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
                                     print(f"Gemini text extraction successful with {model_name}")
                                     break
                         except Exception as e:
-                            print(f"Model {model_name} failed: {str(e)}")
+                            error_msg = str(e)
+                            print(f"Model {model_name} failed: {error_msg}")
+                            # Check if it's a rate limit error
+                            if "429" in error_msg or "quota" in error_msg.lower():
+                                print("Rate limit hit - quota exceeded")
                             continue
 
                 except Exception as e:
